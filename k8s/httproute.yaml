@@ -1,0 +1,20 @@
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: jonbot-https
+spec:
+  parentRefs:
+    - name: inflow-gateway
+      namespace: inflow
+      sectionName: https
+  hostnames:
+    - jonbot.in-reve.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: jonbot
+          port: 80

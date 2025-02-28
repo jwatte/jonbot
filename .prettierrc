@@ -1,0 +1,28 @@
+{
+	"tabWidth": 4,
+	"useTabs": true,
+	"trailingComma": "es5",
+	"semi": true,
+	"singleQuote": false,
+	"printWidth": 100,
+	"importOrderParserPlugins": ["typescript", "decorators", "importAssertions"],
+	"importOrderSeparation": true,
+	"importOrder": ["^[node:]", "<THIRD_PARTY_MODULES>", "^[.]?[./]"],
+	"overrides": [
+		{
+			"files": ["*.yaml", "*.yml"],
+			"options": {
+				"tabWidth": 2,
+				"useTabs": false,
+				"singleQuote": false
+			}
+		},
+		{
+			"files": ["Dockerfile"],
+			"options": {
+				"tabWidth": 2,
+				"useTabs": false
+			}
+		}
+	]
+}

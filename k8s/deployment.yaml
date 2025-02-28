@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jonbot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jonbot
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: jonbot
+    spec:
+      containers:
+      - name: jonbot
+        image: us-west1-docker.pkg.dev/dev-infra-422317/reve-containers/jonbot:latest
+        imagePullPolicy: Always
+        env:
+        - name: SLACKBOT_OAUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: slackbot
+              key: oauth_token
+        - name: SLACKBOT_POST_URL
+          valueFrom:
+            secretKeyRef:
+              name: slackbot
+              key: post_url
+        - name: SLACKBOT_INCOMING_SIGNING_KEY
+          valueFrom:
+            secretKeyRef:
+              name: slackbot
+              key: incoming_signing_key
+        - name: SLACKBOT_OUTGOING_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: slackbot
+              key: outgoing_client_secret
+        - name: SLACKBOT_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: slackbot
+              key: client_id
+        - name: SLACK_VERIFICATION_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: slackbot
+              key: verification_token
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - killall
+              - node
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz?kind=readiness
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 1
+          periodSeconds: 3
+          successThreshold: 1
+          timeoutSeconds: 3
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz?kind=liveness
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 1
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        resources:
+          limits:
+            ephemeral-storage: 200Mi
+            memory: 1000Mi
+          requests:
+            cpu: 200m
+            ephemeral-storage: 200Mi
+            memory: 1000Mi
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 3
