@@ -32,6 +32,9 @@ const server = http.createServer((req: http.IncomingMessage, res: http.ServerRes
 	handler(req, res)
 		.catch((err) => {
 			console.log(new Date().toISOString(), `ip: ${ip} url: ${u.toString()} error: ${err}`);
+			if (err?.stack) {
+				console.log(err.stack);
+			}
 			if (!res.headersSent) {
 				res.writeHead(500, { "Content-Type": "text/plain" });
 			}

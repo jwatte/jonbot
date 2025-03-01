@@ -4,6 +4,7 @@ import { ICommand, ICommandContext } from "./types.js";
 import { readAllBody } from "./util.js";
 
 import { help } from "./commands/help.js";
+import { app_mention } from "./events/app_mention.js";
 import { url_verification } from "./events/url_verification.js";
 
 const EVENTS: {
@@ -15,6 +16,7 @@ const EVENTS: {
 	) => Promise<void>;
 } = {
 	url_verification,
+	app_mention,
 };
 
 const INTERACTIONS: {
@@ -44,7 +46,12 @@ export class Jonbot {
 		const txt = (j.text as string).trim();
 		for (const cmd of COMMANDS) {
 			if (txt.startsWith(cmd.name)) {
-				return cmd.doCommand(req, res, j, ctx);
+				await cmd.doCommand(req, res, j, ctx);
+				if (!res.headersSent) {
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.write(`{"ok": true}`);
+				}
+				return;
 			}
 		}
 		console.log(new Date().toISOString(), `unhandled command name: ${txt.substring(0, 12)}...`);
@@ -59,7 +66,12 @@ export class Jonbot {
 		);
 		const fun = INTERACTIONS[j.type];
 		if (fun) {
-			return fun(req, res, j, ctx);
+			await fun(req, res, j, ctx);
+			if (!res.headersSent) {
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.write(`{"ok": true}`);
+			}
+			return;
 		}
 		console.log(new Date().toISOString(), `unhandled interaction type: ${j.type}`);
 	}
@@ -70,9 +82,15 @@ export class Jonbot {
 			new Date().toISOString(),
 			`event: ${u.toString()} payload: ${JSON.stringify(j)}`
 		);
-		const fun = EVENTS[j.type];
+		const type = j.event?.type ?? j.type;
+		const fun = EVENTS[type];
 		if (fun) {
-			return fun(req, res, j, ctx);
+			await fun(req, res, j, ctx);
+			if (!res.headersSent) {
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.write(`{"ok": true}`);
+			}
+			return;
 		}
 		console.log(new Date().toISOString(), `unhandled event type: ${j.type}`);
 	}
