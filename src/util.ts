@@ -27,12 +27,12 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
 					j = JSON.parse(bufstr);
 				}
 				if (
-					j.token !== process.env.SLACK_VERIFICATION_TOKEN &&
+					j.token !== (process.env.SLACK_VERIFICATION_TOKEN ?? "").trim() &&
 					j.type !== "url_verification"
 				) {
 					reject(
 						new Error(
-							`invalid slack verifiction token ${j.token} != ${process.env.SLACK_VERIFICATION_TOKEN}`
+							`invalid slack verification token ${j.token} != ${process.env.SLACK_VERIFICATION_TOKEN}`
 						)
 					);
 				} else {
