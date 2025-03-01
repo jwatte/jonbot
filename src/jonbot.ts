@@ -47,6 +47,7 @@ export class Jonbot {
 				return cmd.doCommand(req, res, j, ctx);
 			}
 		}
+		console.log(new Date().toISOString(), `unhandled command name: ${txt.substring(0, 12)}...`);
 		return help.doCommand(req, res, j, ctx);
 	}
 

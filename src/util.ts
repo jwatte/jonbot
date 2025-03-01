@@ -32,7 +32,7 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
 				) {
 					reject(
 						new Error(
-							`invalid slack verifiction token $j.token} != ${process.env.SLACK_VERIFICATION_TOKEN}`
+							`invalid slack verifiction token ${j.token} != ${process.env.SLACK_VERIFICATION_TOKEN}`
 						)
 					);
 				} else {
@@ -43,4 +43,12 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
 			}
 		});
 	});
+}
+
+export function getTrustedIp(req: http.IncomingMessage): string {
+	const xff = req.headers["x-forwarded-for"];
+	if (typeof xff === "string") {
+		return xff.split(",")[0];
+	}
+	return req.socket.remoteAddress ?? "unknown";
 }

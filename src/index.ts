@@ -1,6 +1,7 @@
 import http from "http";
 
 import { Jonbot } from "./jonbot.js";
+import { getTrustedIp } from "./util.js";
 
 const J = new Jonbot();
 
@@ -25,7 +26,7 @@ const HANDLERS: {
 };
 
 const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
-	const ip = req.headers["x-forwarded-for"];
+	const ip = getTrustedIp(req);
 	const u = new URL(req.url ?? "/", `http://${req.headers.host}`);
 	const handler = HANDLERS[u.pathname] ?? notFound;
 	handler(req, res)
