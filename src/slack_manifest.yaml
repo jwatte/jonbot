@@ -12,8 +12,9 @@ features:
   slash_commands:
     - command: /jonbot
       url: https://jonbot.in-reve.com/jonbot/command
-      description: Gets a quip
+      description: Jonbot commands
       should_escape: true
+      usage_hint: "help | config"
 oauth_config:
   scopes:
     bot:

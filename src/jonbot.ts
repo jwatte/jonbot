@@ -4,8 +4,10 @@ import { ICommand, ICommandContext } from "./types.js";
 import { readAllBody } from "./util.js";
 
 import { help } from "./commands/help.js";
+import { config } from "./commands/config.js";
 import { app_mention } from "./events/app_mention.js";
 import { url_verification } from "./events/url_verification.js";
+import { handle_save_config } from "./interactions/config_handlers.js";
 
 const EVENTS: {
 	[type: string]: (
@@ -26,9 +28,20 @@ const INTERACTIONS: {
 		j: any,
 		ctx: ICommandContext
 	) => Promise<void>;
-} = {};
+} = {
+	block_actions: async (req, res, j, ctx) => {
+		const payload = j.payload ? JSON.parse(j.payload) : j;
+		const actionId = payload.actions?.[0]?.action_id;
+		
+		if (actionId === "save_config") {
+			return handle_save_config(req, res, j, ctx);
+		}
+		
+		console.log(new Date().toISOString(), `unhandled block_actions actionId: ${actionId}`);
+	}
+};
 
-const COMMANDS: ICommand[] = [help];
+const COMMANDS: ICommand[] = [help, config];
 
 const ctx: ICommandContext = {
 	EVENTS,
@@ -48,7 +61,10 @@ export class Jonbot {
 			if (txt.startsWith(cmd.name)) {
 				await cmd.doCommand(req, res, j, ctx);
 				if (!res.headersSent) {
-					res.writeHead(200, { "Content-Type": "application/json" });
+					res.writeHead(200, {
+						"Content-Type": "application/json",
+						"Content-Length": "12",
+					});
 					res.write(`{"ok": true}`);
 				}
 				return;
@@ -68,7 +84,10 @@ export class Jonbot {
 		if (fun) {
 			await fun(req, res, j, ctx);
 			if (!res.headersSent) {
-				res.writeHead(200, { "Content-Type": "application/json" });
+				res.writeHead(200, {
+					"Content-Type": "application/json",
+					"Content-Length": "12",
+				});
 				res.write(`{"ok": true}`);
 			}
 			return;
@@ -87,7 +106,10 @@ export class Jonbot {
 		if (fun) {
 			await fun(req, res, j, ctx);
 			if (!res.headersSent) {
-				res.writeHead(200, { "Content-Type": "application/json" });
+				res.writeHead(200, {
+					"Content-Type": "application/json",
+					"Content-Length": "12",
+				});
 				res.write(`{"ok": true}`);
 			}
 			return;
