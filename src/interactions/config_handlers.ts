@@ -1,6 +1,51 @@
 import http from "http";
+import https from "https";
 import { setConfigValue } from "../config.js";
 import type { ICommandContext } from "../types.js";
+
+// Function to validate the REVE API token
+async function validateToken(token: string): Promise<{ valid: boolean; message?: string }> {
+    return new Promise((resolve) => {
+        const req = https.request(
+            {
+                hostname: "preview.reve.art",
+                path: "/api/misc/userinfo",
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Accept": "application/json"
+                }
+            },
+            (res) => {
+                let data = "";
+                res.on("data", (chunk) => {
+                    data += chunk;
+                });
+                
+                res.on("end", () => {
+                    if (res.statusCode === 200) {
+                        resolve({ valid: true });
+                    } else {
+                        let errorMessage;
+                        try {
+                            const jsonResponse = JSON.parse(data);
+                            errorMessage = jsonResponse.message || `Error ${res.statusCode}`;
+                        } catch (e) {
+                            errorMessage = `Error ${res.statusCode}`;
+                        }
+                        resolve({ valid: false, message: errorMessage });
+                    }
+                });
+            }
+        );
+        
+        req.on("error", (err) => {
+            resolve({ valid: false, message: `Connection error: ${err.message}` });
+        });
+        
+        req.end();
+    });
+}
 
 export async function config_view_submission(
     req: http.IncomingMessage,
@@ -68,16 +113,35 @@ export async function config_view_submission(
             }
         }
         
+        // Validate the API token
+        const validationResult = await validateToken(revetApiKey);
+        
+        if (!validationResult.valid) {
+            // Return validation error to the modal
+            console.log(new Date().toISOString(), `API key validation failed: ${validationResult.message}`);
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.write(
+                JSON.stringify({
+                    response_action: "errors",
+                    errors: {
+                        "reve_api_key_block": `Invalid API key: ${validationResult.message}`
+                    }
+                })
+            );
+            return;
+        }
+        
         // Save the configuration with the team ID using the safe save method
         await setConfigValue("reve_api_key", revetApiKey, teamId);
         
-        // Acknowledge the view submission
+        // Acknowledge the view submission and close the dialog
         res.writeHead(200, { "Content-Type": "application/json" });
         res.write(JSON.stringify({ response_action: "clear" }));
         
         // Log the team ID for debugging
-        console.log(new Date().toISOString(), `Saved configuration for team: ${teamId}`);
-    } catch (error) {
+        console.log(new Date().toISOString(), `Saved configuration for team: ${teamId} with validated API key`);
+    } catch (err) {
+        const error = err as Error;
         console.error("Error saving configuration:", error);
         
         // Return errors to the modal
@@ -86,7 +150,7 @@ export async function config_view_submission(
             JSON.stringify({
                 response_action: "errors",
                 errors: {
-                    "reve_api_key_block": "Error saving configuration. Please try again."
+                    "reve_api_key_block": `Error saving configuration: ${error.message || String(error)}`
                 }
             })
         );
