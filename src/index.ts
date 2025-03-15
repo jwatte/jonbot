@@ -2,10 +2,10 @@ import http from "http";
 import path from "path";
 import serveStatic from "serve-static";
 
-import { Jonbot } from "./jonbot.js";
-import { getTrustedIp } from "./util.js";
 import { setConfigValue } from "./config.js";
+import { Jonbot } from "./jonbot.js";
 import { log } from "./logging.js";
+import { getTrustedIp } from "./util.js";
 
 const J = new Jonbot();
 
@@ -29,6 +29,7 @@ document.location.href="/jonbot";
 
 // Create a static file server for the content directory
 const contentPath = path.join(process.cwd(), "content");
+log.info(`serving static content from ${contentPath}`);
 const staticServe = serveStatic(contentPath);
 
 // Slack OAuth installation endpoint
@@ -40,72 +41,85 @@ async function handleOAuthInstall(
         const u = new URL(req.url ?? "/", `http://${req.headers.host}`);
         const code = u.searchParams.get("code");
         const teamId = u.searchParams.get("team");
-        
+
         if (!code || !teamId) {
             res.writeHead(400, { "Content-Type": "text/plain" });
             res.write("Missing required parameters: code and team");
             return;
         }
-        
+
         // Exchange code for OAuth token
         const clientId = process.env.SLACK_CLIENT_ID;
         const clientSecret = process.env.SLACK_CLIENT_SECRET;
-        
+
         if (!clientId || !clientSecret) {
-            log.error("Missing Slack client credentials in environment variables");
+            log.error(
+                "Missing Slack client credentials in environment variables",
+            );
             res.writeHead(500, { "Content-Type": "text/plain" });
             res.write("Server configuration error");
             return;
         }
-        
+
         // Call Slack OAuth API to exchange the code for a token
-        const tokenResponse = await fetch("https://slack.com/api/oauth.v2.access", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
+        const tokenResponse = await fetch(
+            "https://slack.com/api/oauth.v2.access",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({
+                    code,
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                }).toString(),
             },
-            body: new URLSearchParams({
-                code,
-                client_id: clientId,
-                client_secret: clientSecret,
-            }).toString(),
-        });
-        
+        );
+
         const tokenData = await tokenResponse.json();
-        
+
         if (!tokenData.ok) {
             log.error("OAuth exchange failed:", tokenData.error);
             res.writeHead(400, { "Content-Type": "text/plain" });
             res.write(`Authentication failed: ${tokenData.error}`);
             return;
         }
-        
+
         // Store the access token in the team's config
         const accessToken = tokenData.access_token;
         await setConfigValue("slack_oauth_token", accessToken, teamId);
-        
+
         // Redirect to success page
         res.writeHead(302, { Location: "/jonbot/success.html" });
     } catch (error) {
         log.error("OAuth installation error:", error);
         res.writeHead(500, { "Content-Type": "text/plain" });
-        res.write(`Error during installation: ${(error as Error).message || String(error)}`);
+        res.write(
+            `Error during installation: ${(error as Error).message || String(error)}`,
+        );
     }
 }
 
 // Serve static content for the /jonbot route
-async function serveContent(
+function serveContent(
     req: http.IncomingMessage,
     res: http.ServerResponse,
 ): Promise<void> {
-    return new Promise((resolve) => {
-        staticServe(req, res, () => {
-            // This is the "next" function that gets called if no file is found
-            res.writeHead(404, { "Content-Type": "text/plain" });
-            res.write(`Static file not found: ${req.url}\n`);
-            resolve();
-        });
+    if (req.url?.startsWith("/jonbot")) {
+        req.url = req.url.substring(7) ?? "/";
+    }
+    if (req.url === "/") {
+        res.writeHead(302, { Location: "/jonbot/index.html" });
+        res.end();
+        return Promise.resolve();
+    }
+    staticServe(req, res, () => {
+        // This is the "next" function that gets called if no file is found
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.write(`Static file not found: ${req.url}\n`);
     });
+    return Promise.resolve();
 }
 
 const HANDLERS: {

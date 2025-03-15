@@ -70,7 +70,7 @@ export async function getSlackToken(teamId?: string): Promise<string> {
     if (!teamId) {
         return process.env.SLACKBOT_OAUTH_TOKEN ?? "";
     }
-    
+
     // Try to get team-specific token from config
     const config = await getStoredConfig(teamId);
     return config.slack_oauth_token ?? process.env.SLACKBOT_OAUTH_TOKEN ?? "";
@@ -88,7 +88,7 @@ export async function chatPostMessageSimple(
     });
     const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const url = process.env.SLACKBOT_POST_URL ?? "";
-    
+
     // Get the appropriate token for this team
     const token = await getSlackToken(teamId);
 
@@ -110,14 +110,18 @@ export async function chatPostMessageSimple(
             errorText.length > 4000
                 ? errorText.substring(0, 4000) + "..."
                 : errorText;
-        log.info(`[${requestId}] Fetch request failed: ${res.status} ${res.statusText}\nResponse body: ${errorBody}`);
+        log.info(
+            `[${requestId}] Fetch request failed: ${res.status} ${res.statusText}\nResponse body: ${errorBody}`,
+        );
         throw new Error(
             `chat.postMessage failed: ${res.status} ${res.statusText}`,
         );
     }
 
     const responseText = await res.text();
-    log.info(`[${requestId}] Fetch request completed successfully. Response size: ${responseText.length} bytes`);
+    log.info(
+        `[${requestId}] Fetch request completed successfully. Response size: ${responseText.length} bytes`,
+    );
 
     /*
 Headers {

@@ -112,7 +112,9 @@ export async function config_view_submission(
                     ) {
                         revetApiKey = values[blockId][actionId].value;
                         found = true;
-                        log.info(`Found API key in block: ${blockId}, action: ${actionId}`);
+                        log.info(
+                            `Found API key in block: ${blockId}, action: ${actionId}`,
+                        );
                         break;
                     }
                 }
@@ -151,7 +153,9 @@ export async function config_view_submission(
         res.write(JSON.stringify({ response_action: "clear" }));
 
         // Log the team ID for debugging
-        log.info(`Saved configuration for team: ${teamId} with validated API key`);
+        log.info(
+            `Saved configuration for team: ${teamId} with validated API key`,
+        );
     } catch (err) {
         const error = err as Error;
         log.error("Error saving configuration:", error);

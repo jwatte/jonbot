@@ -255,8 +255,8 @@ async function joinChannel(
     log.info(requestId, `Attempting to join channel ${channelId}`);
 
     // Get the appropriate token for this team
-    const token = await getSlackToken(channelId.split('_')[0]);
-    
+    const token = await getSlackToken(channelId.split("_")[0]);
+
     const response = await fetch("https://slack.com/api/conversations.join", {
         method: "POST",
         headers: {
@@ -314,8 +314,8 @@ async function postImageToSlack(
         urlEncoded.append(key, value.toString());
     }
     // Get the appropriate token for this team
-    const token = await getSlackToken(channelId.split('_')[0]);
-    
+    const token = await getSlackToken(channelId.split("_")[0]);
+
     const getUrlResponse = await fetch(
         "https://slack.com/api/files.getUploadURLExternal",
         {
@@ -364,7 +364,7 @@ async function postImageToSlack(
         fileId,
     );
     // We'll reuse the token we got earlier
-    
+
     const completeResponse = await fetch(
         "https://slack.com/api/files.completeUploadExternal",
         {

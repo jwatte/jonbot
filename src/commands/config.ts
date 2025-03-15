@@ -19,7 +19,9 @@ export const config: ICommand = {
         const teamId = j.team_id || j.team?.id || j.user?.team_id;
 
         // Debug log for team ID extraction
-        log.info(`Config command - Team ID: ${teamId}, Payload keys: ${Object.keys(j).join(", ")}`);
+        log.info(
+            `Config command - Team ID: ${teamId}, Payload keys: ${Object.keys(j).join(", ")}`,
+        );
 
         // Get config specific to this team
         const currentConfig = await getStoredConfig(teamId);
