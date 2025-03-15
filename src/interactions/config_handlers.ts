@@ -1,39 +1,40 @@
 import http from "http";
-import type { ICommandContext } from "../types.js";
 import { setConfigValue } from "../config.js";
+import type { ICommandContext } from "../types.js";
 
-export async function handle_save_config(
+export async function config_view_submission(
     req: http.IncomingMessage,
     res: http.ServerResponse,
     j: any,
     ctx: ICommandContext
 ): Promise<void> {
     try {
-		console.log("Galloping fnords");
         // Parse payload if it's a string
         const payload = typeof j.payload === 'string' ? JSON.parse(j.payload) : j;
         
-        // Log the full payload structure for debugging
-        console.log(new Date().toISOString(), "Interaction payload keys:", Object.keys(payload));
+        // Extract the team ID from private_metadata if available
+        let teamId = "";
+        try {
+            const metadata = JSON.parse(payload.view?.private_metadata || "{}");
+            teamId = metadata.teamId || "";
+        } catch (err) {
+            console.error("Error parsing private_metadata:", err);
+        }
         
-        // Extract the team ID from the payload
-        // Based on the actual payload structure we observed
-        const teamId = payload.team?.id || "";
+        // Fallback to team info from payload if metadata doesn't have team ID
+        if (!teamId) {
+            teamId = payload.team?.id || "";
+        }
         
         if (!teamId) {
             console.log(new Date().toISOString(), "WARNING: Could not extract team ID from payload");
         }
         
         // Debug log to help troubleshoot team ID extraction
-        console.log(new Date().toISOString(), `Save config - Team ID: ${teamId}, Payload structure:`, 
-            JSON.stringify({
-                hasTeam: !!payload.team,
-                teamId: payload.team?.id
-            })
-        );
+        console.log(new Date().toISOString(), `Save config - Team ID: ${teamId}`);
         
         // Get values from state
-        const values = payload.state?.values;
+        const values = payload.view?.state?.values;
         
         if (!values) {
             throw new Error("Could not find form values in payload");
@@ -67,29 +68,26 @@ export async function handle_save_config(
             }
         }
         
-        // Save the configuration with the team ID
+        // Save the configuration with the team ID using the safe save method
         await setConfigValue("reve_api_key", revetApiKey, teamId);
         
-        // Send a confirmation message
+        // Acknowledge the view submission
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.write(
-            JSON.stringify({
-                text: "✅ Configuration saved successfully!",
-                response_type: "ephemeral"
-            })
-        );
+        res.write(JSON.stringify({ response_action: "clear" }));
         
         // Log the team ID for debugging
         console.log(new Date().toISOString(), `Saved configuration for team: ${teamId}`);
     } catch (error) {
         console.error("Error saving configuration:", error);
         
-        // Send an error message
+        // Return errors to the modal
         res.writeHead(200, { "Content-Type": "application/json" });
         res.write(
             JSON.stringify({
-                text: "❌ Error saving configuration. Please try again.",
-                response_type: "ephemeral"
+                response_action: "errors",
+                errors: {
+                    "reve_api_key_block": "Error saving configuration. Please try again."
+                }
             })
         );
     }

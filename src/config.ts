@@ -40,15 +40,20 @@ export async function getStoredConfig(teamId?: string): Promise<JonbotConfig> {
     }
 }
 
-// Save config to file for a specific team
+// Save config to file for a specific team using safe save method
 export async function setConfig(config: JonbotConfig, teamId?: string): Promise<void> {
     try {
         // Ensure config directory exists
         await fs.mkdir(CONFIG_DIR, { recursive: true });
         
         const configFile = getConfigPath(teamId);
+        const tempFile = `${configFile}.tmp`;
         
-        await fs.writeFile(configFile, JSON.stringify(config, null, 2), 'utf8');
+        // First write to a temporary file
+        await fs.writeFile(tempFile, JSON.stringify(config, null, 2), 'utf8');
+        
+        // Then rename the temp file to the actual config file
+        await fs.rename(tempFile, configFile);
     } catch (error) {
         console.error("Error saving config:", error);
         throw error;

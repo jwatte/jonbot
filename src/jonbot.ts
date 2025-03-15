@@ -3,11 +3,11 @@ import * as http from "http";
 import { ICommand, ICommandContext } from "./types.js";
 import { readAllBody } from "./util.js";
 
-import { help } from "./commands/help.js";
 import { config } from "./commands/config.js";
+import { help } from "./commands/help.js";
 import { app_mention } from "./events/app_mention.js";
 import { url_verification } from "./events/url_verification.js";
-import { handle_save_config } from "./interactions/config_handlers.js";
+import { config_view_submission } from "./interactions/config_handlers.js";
 
 const EVENTS: {
 	[type: string]: (
@@ -33,11 +33,17 @@ const INTERACTIONS: {
 		const payload = j.payload ? JSON.parse(j.payload) : j;
 		const actionId = payload.actions?.[0]?.action_id;
 		
-		if (actionId === "save_config") {
-			return handle_save_config(req, res, j, ctx);
+		console.log(new Date().toISOString(), `unhandled block_actions actionId: ${actionId}`);
+	},
+	view_submission: async (req, res, j, ctx) => {
+		const payload = j.payload ? JSON.parse(j.payload) : j;
+		const callbackId = payload.view?.callback_id;
+		
+		if (callbackId === "config_modal") {
+			return config_view_submission(req, res, j, ctx);
 		}
 		
-		console.log(new Date().toISOString(), `unhandled block_actions actionId: ${actionId}`);
+		console.log(new Date().toISOString(), `unhandled view_submission callbackId: ${callbackId}`);
 	}
 };
 
@@ -84,6 +90,7 @@ export class Jonbot {
 		if (fun) {
 			await fun(req, res, j, ctx);
 			if (!res.headersSent) {
+				console.log(new Date().toISOString(), `interaction generated no output: ${j.type}`);
 				res.writeHead(200, {
 					"Content-Type": "application/json",
 					"Content-Length": "12",
