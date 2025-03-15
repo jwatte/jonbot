@@ -5,7 +5,7 @@ while true; do
   START=$(date +%s)
   node ./index.js
   STOP=$(date +%s)
-  if [[ $(($STOP - $START)) -lt 20 ]]; then
+  if [[ $(($STOP - $START)) -lt 10 ]]; then
     echo "re-starting too quickly ($STOP - $START) -- exiting"
     exit 1
   fi

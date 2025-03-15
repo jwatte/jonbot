@@ -102,6 +102,10 @@ async function generateImage(
     });
 }
 
+async function postImageToSlack(responseUrl: string, webpBase64: string, prompt: string, channelId: string): Promise<void> {
+    return Promise.reject(new Error("Implement me"));
+}
+
 /**
  * Posts a message to Slack via the response_url
  */
@@ -148,152 +152,6 @@ async function postMessageToSlack(responseUrl: string, message: any): Promise<vo
             reject(err);
         }
     });
-}
-
-/**
- * Uploads an image to Slack using the files.upload API
- */
-async function uploadImageToSlack(
-    channelId: string, 
-    imageBase64: string, 
-    prompt: string
-): Promise<void> {
-    return new Promise((resolve, reject) => {
-        try {
-            // Get the Slack OAuth token from environment variables
-            const token = process.env.SLACKBOT_OAUTH_TOKEN;
-            if (!token) {
-                throw new Error("SLACKBOT_OAUTH_TOKEN not found in environment variables");
-            }
-            
-            // Convert base64 to binary buffer
-            const imageBuffer = Buffer.from(imageBase64, 'base64');
-            
-            // Prepare file upload with multipart/form-data
-            const boundary = `----WebKitFormBoundary${Math.random().toString(16).substr(2)}`;
-            
-            // Create form data parts
-            const parts = [
-                `--${boundary}`,
-                'Content-Disposition: form-data; name="token"',
-                '',
-                token,
-                `--${boundary}`,
-                'Content-Disposition: form-data; name="channels"',
-                '',
-                channelId,
-                `--${boundary}`,
-                'Content-Disposition: form-data; name="title"',
-                '',
-                `Generated image: ${prompt}`,
-                `--${boundary}`,
-                'Content-Disposition: form-data; name="filename"',
-                '',
-                'generated-image.png',
-                `--${boundary}`,
-                'Content-Disposition: form-data; name="filetype"',
-                '',
-                'png',
-                `--${boundary}`,
-                'Content-Disposition: form-data; name="initial_comment"',
-                '',
-                `Generated image for prompt: "${prompt}"`,
-                `--${boundary}`,
-                'Content-Disposition: form-data; name="file"; filename="generated-image.png"',
-                'Content-Type: image/png',
-                '',
-                imageBuffer,
-                `--${boundary}--`
-            ];
-            
-            // Join parts with CRLF
-            const payload = parts.join('\r\n').replace(/\r\n\r\n{}/g, '\r\n\r\n');
-            
-            // Make the API request to upload the file
-            const req = https.request(
-                {
-                    hostname: "slack.com",
-                    path: "/api/files.upload",
-                    method: "POST",
-                    headers: {
-                        "Content-Type": `multipart/form-data; boundary=${boundary}`,
-                        "Content-Length": Buffer.byteLength(payload)
-                    }
-                },
-                (res) => {
-                    let data = "";
-                    res.on("data", (chunk) => {
-                        data += chunk;
-                    });
-                    
-                    res.on("end", () => {
-                        if (res.statusCode !== 200) {
-                            console.error(`Slack API request failed with status ${res.statusCode}:`, data);
-                            reject(new Error(`Slack API request failed: ${data}`));
-                            return;
-                        }
-                        
-                        try {
-                            const response = JSON.parse(data);
-                            if (!response.ok) {
-                                console.error("Slack files.upload failed:", response.error);
-                                reject(new Error(`Slack API error: ${response.error}`));
-                                return;
-                            }
-                            
-                            console.log(new Date().toISOString(), 
-                                `Successfully uploaded image to Slack, file ID: ${response.file?.id}`);
-                            resolve();
-                        } catch (err) {
-                            console.error("Error parsing Slack API response:", err);
-                            reject(err);
-                        }
-                    });
-                }
-            );
-            
-            req.on("error", (err) => {
-                console.error("Error uploading file to Slack:", err);
-                reject(err);
-            });
-            
-            req.write(payload);
-            req.end();
-        } catch (err) {
-            console.error("Error in uploadImageToSlack:", err);
-            reject(err);
-        }
-    });
-}
-
-/**
- * Posts an image to Slack as a response
- */
-async function postImageToSlack(responseUrl: string, imageBase64: string, prompt: string, channelId: string): Promise<void> {
-    try {
-        // First post a message that we're processing the image
-        await postMessageToSlack(responseUrl, {
-            response_type: "ephemeral", // Only visible to the user who triggered the command
-            text: "Image generated successfully. Uploading to Slack..."
-        });
-        
-        // Upload the image to Slack using files.upload API
-        await uploadImageToSlack(channelId, imageBase64, prompt);
-        
-        // Log success
-        console.log(new Date().toISOString(), 
-            `Successfully handled image for prompt: "${prompt}"`);
-    } catch (err) {
-        console.error("Error posting image to Slack:", err);
-        
-        // Notify the user of the error
-        await postMessageToSlack(responseUrl, {
-            response_type: "ephemeral",
-            text: `Error uploading image to Slack: ${err.message}`
-        });
-        
-        throw err;
-    }
 }
 
 export const generate: ICommand = {

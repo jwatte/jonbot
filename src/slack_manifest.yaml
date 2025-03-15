@@ -29,6 +29,7 @@ oauth_config:
       - app_mentions:read
       - reactions:read
       - files:write
+      - files:read
 settings:
   event_subscriptions:
     request_url: https://jonbot.in-reve.com/jonbot/event

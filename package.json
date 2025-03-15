@@ -5,15 +5,19 @@
   "main": "dist/index.js",
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "tsc --pretty",
+    "build": "prettier --write src && tsc --pretty",
     "serve": "tsc --pretty && node dist/index.js",
-    "test": "tsc --noEmit"
+    "test": "tsc --noEmit",
+    "format": "prettier --write src"
   },
   "keywords": [],
   "author": "",
   "license": "Private",
   "dependencies": {
+  },
+  "devDependencies": {
     "@types/node": "^22.13.5",
+    "prettier": "^3.5.3",
     "typescript": "^5.7.3"
   }
 }
