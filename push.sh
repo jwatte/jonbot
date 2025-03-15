@@ -2,7 +2,7 @@
 set -eu
 
 IMAGE_NAME=jonbot
-KUBE_KIND=deployment
+KUBE_KIND=statefulset
 KUBE_NAME=jonbot
 KUBE_NAMESPACE=jonbot
 KUBE_CLUSTER=dev-infra

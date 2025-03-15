@@ -5,6 +5,6 @@ kind: Kustomization
 namespace: jonbot
 
 resources:
-  - deployment.yaml
+  - statefulset.yaml
   - httproute.yaml
   - service.yaml

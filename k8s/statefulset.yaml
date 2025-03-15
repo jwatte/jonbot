@@ -1,17 +1,13 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: jonbot
 spec:
+  serviceName: "jonbot"
   replicas: 1
   selector:
     matchLabels:
       app: jonbot
-  strategy:
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
-    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -52,6 +48,8 @@ spec:
             secretKeyRef:
               name: slackbot
               key: verification_token
+        - name: CONFIG_DIR
+          value: "/config"
         lifecycle:
           preStop:
             exec:
@@ -81,6 +79,9 @@ spec:
         ports:
         - containerPort: 3000
           protocol: TCP
+        volumeMounts:
+        - name: config-storage
+          mountPath: /config
         resources:
           limits:
             ephemeral-storage: 200Mi
@@ -91,3 +92,11 @@ spec:
             memory: 1000Mi
       restartPolicy: Always
       terminationGracePeriodSeconds: 3
+  volumeClaimTemplates:
+  - metadata:
+      name: config-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
