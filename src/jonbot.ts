@@ -33,19 +33,22 @@ const INTERACTIONS: {
 	block_actions: async (req, res, j, ctx) => {
 		const payload = j.payload ? JSON.parse(j.payload) : j;
 		const actionId = payload.actions?.[0]?.action_id;
-		
+
 		console.log(new Date().toISOString(), `unhandled block_actions actionId: ${actionId}`);
 	},
 	view_submission: async (req, res, j, ctx) => {
 		const payload = j.payload ? JSON.parse(j.payload) : j;
 		const callbackId = payload.view?.callback_id;
-		
+
 		if (callbackId === "config_modal") {
 			return config_view_submission(req, res, j, ctx);
 		}
-		
-		console.log(new Date().toISOString(), `unhandled view_submission callbackId: ${callbackId}`);
-	}
+
+		console.log(
+			new Date().toISOString(),
+			`unhandled view_submission callbackId: ${callbackId}`
+		);
+	},
 };
 
 const COMMANDS: ICommand[] = [help, config, generate];

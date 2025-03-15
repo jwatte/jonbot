@@ -7,7 +7,7 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
 	const u = new URL(req.url ?? "/", `http://${req.headers.host}`);
 	return new Promise((resolve, reject) => {
 		req.on("error", (err) => {
-			console.log((new Date()).toISOString(), `input error: ${err}`);
+			console.log(new Date().toISOString(), `input error: ${err}`);
 			reject(err);
 		});
 		const chunks: Uint8Array[] = [];
@@ -34,7 +34,7 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
 					j.token !== (process.env.SLACK_VERIFICATION_TOKEN ?? "").trim() &&
 					j.type !== "url_verification"
 				) {
-					console.log((new Date()).toISOString(), `bad payload`, j);
+					console.log(new Date().toISOString(), `bad payload`, j);
 					reject(
 						new Error(
 							`invalid slack verification token ${j.token} != ${process.env.SLACK_VERIFICATION_TOKEN}`

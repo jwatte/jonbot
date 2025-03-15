@@ -15,19 +15,24 @@ export const config: ICommand = {
 	): Promise<void> {
 		// Extract team ID from the request
 		const teamId = j.team_id || j.team?.id || j.user?.team_id;
-		
+
 		// Debug log for team ID extraction
-		console.log(new Date().toISOString(), `Config command - Team ID: ${teamId}, Payload keys: ${Object.keys(j).join(", ")}`);
-		
+		console.log(
+			new Date().toISOString(),
+			`Config command - Team ID: ${teamId}, Payload keys: ${Object.keys(j).join(", ")}`
+		);
+
 		// Get config specific to this team
 		const currentConfig = await getStoredConfig(teamId);
 
 		// First, acknowledge the slash command with a simple response
 		res.writeHead(200, { "Content-Type": "application/json" });
-		res.write(JSON.stringify({
-			"response_type": "ephemeral",
-			"text": "Opening configuration dialog..."
-		}));
+		res.write(
+			JSON.stringify({
+				response_type: "ephemeral",
+				text: "Opening configuration dialog...",
+			})
+		);
 		res.end();
 
 		// Then open a modal using the Slack API
@@ -42,17 +47,17 @@ export const config: ICommand = {
 					title: {
 						type: "plain_text",
 						text: "Jonbot Configuration",
-						emoji: true
+						emoji: true,
 					},
 					submit: {
 						type: "plain_text",
 						text: "Save",
-						emoji: true
+						emoji: true,
 					},
 					close: {
 						type: "plain_text",
 						text: "Cancel",
-						emoji: true
+						emoji: true,
 					},
 					private_metadata: JSON.stringify({ teamId }), // Pass team ID to view submission handler
 					blocks: [
@@ -60,8 +65,8 @@ export const config: ICommand = {
 							type: "section",
 							text: {
 								type: "mrkdwn",
-								text: "Configure jonbot settings below:"
-							}
+								text: "Configure jonbot settings below:",
+							},
 						},
 						{
 							type: "input",
@@ -71,45 +76,48 @@ export const config: ICommand = {
 								action_id: "reve_api_key_input",
 								placeholder: {
 									type: "plain_text",
-									text: "Enter API key"
+									text: "Enter API key",
 								},
 								multiline: true,
 								max_length: 1000,
-								initial_value: currentConfig.reve_api_key || ""
+								initial_value: currentConfig.reve_api_key || "",
 							},
 							label: {
 								type: "plain_text",
 								text: "REVE API Key",
-								emoji: true
-							}
-						}
-					]
-				}
+								emoji: true,
+							},
+						},
+					],
+				},
 			};
 
 			// Make request to Slack API
 			const postData = JSON.stringify(modalPayload);
-			const slackReq = https.request({
-				hostname: 'slack.com',
-				port: 443,
-				path: '/api/views.open',
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Content-Length': Buffer.byteLength(postData),
-					'Authorization': `Bearer ${token}`
+			const slackReq = https.request(
+				{
+					hostname: "slack.com",
+					port: 443,
+					path: "/api/views.open",
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"Content-Length": Buffer.byteLength(postData),
+						Authorization: `Bearer ${token}`,
+					},
+				},
+				(slackRes) => {
+					let data = "";
+					slackRes.on("data", (chunk) => {
+						data += chunk;
+					});
+					slackRes.on("end", () => {
+						console.log(new Date().toISOString(), `Slack API response: ${data}`);
+					});
 				}
-			}, (slackRes) => {
-				let data = '';
-				slackRes.on('data', (chunk) => {
-					data += chunk;
-				});
-				slackRes.on('end', () => {
-					console.log(new Date().toISOString(), `Slack API response: ${data}`);
-				});
-			});
+			);
 
-			slackReq.on('error', (error) => {
+			slackReq.on("error", (error) => {
 				console.error(new Date().toISOString(), `Error opening modal: ${error.message}`);
 			});
 

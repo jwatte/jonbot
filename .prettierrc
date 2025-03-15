@@ -5,9 +5,6 @@
 	"semi": true,
 	"singleQuote": false,
 	"printWidth": 100,
-	"importOrderParserPlugins": ["typescript", "decorators", "importAssertions"],
-	"importOrderSeparation": true,
-	"importOrder": ["^[node:]", "<THIRD_PARTY_MODULES>", "^[.]?[./]"],
 	"overrides": [
 		{
 			"files": ["*.yaml", "*.yml"],
