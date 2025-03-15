@@ -17,5 +17,9 @@
     "@types/node": "^22.13.5",
     "prettier": "^3.5.3",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "form-data": "^4.0.2",
+    "sharp": "^0.33.5"
   }
 }
