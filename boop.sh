@@ -11,4 +11,4 @@ for pod in $pods; do
 	# nuke it -- the Dockerfile will restart it. Also, the PID is deterministic, but magic.
 	$KD exec -t -n jonbot $pod -- bash -c "kill \$(ps alx | grep [n]ode | awk '{ print \$3 }')"
 done
-$KD logs -n jonbot statefulset/jonbot --follow
+$KD logs -n jonbot statefulset/jonbot --follow --tail 30

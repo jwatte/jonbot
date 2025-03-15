@@ -19,6 +19,13 @@ async function generateImage(
         const requestId = `[req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}]`;
 
         try {
+            // Try to join the channel first, but don't await it
+            // This runs in parallel with the image generation
+            joinChannel(requestId, channelId).catch((err) => {
+                log.info(requestId, `Failed to join channel: ${err.message}`);
+                // Continue anyway - we'll handle "not_in_channel" errors later if needed
+            });
+
             const url = "https://preview.reve.art/api/misc/simple_generation";
 
             // Prepare the request payload
@@ -231,6 +238,44 @@ async function postMessageToSlack(
 
 function promptify(prompt: string): string {
     return "reve" + prompt.replace(/[^a-zA-Z0-9]/g, "").substring(0, 60);
+}
+
+/**
+ * Attempts to join a Slack channel.
+ *
+ * @param requestId - The request ID for logging
+ * @param channelId - The ID of the channel to join
+ * @returns A promise that resolves if the join is successful, or rejects with an error
+ */
+async function joinChannel(
+    requestId: string,
+    channelId: string,
+): Promise<void> {
+    log.info(requestId, `Attempting to join channel ${channelId}`);
+
+    const response = await fetch("https://slack.com/api/conversations.join", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Authorization: `Bearer ${process.env.SLACKBOT_OAUTH_TOKEN}`,
+        },
+        body: JSON.stringify({
+            channel: channelId,
+        }),
+    });
+
+    const data = await response.json();
+
+    if (data.ok) {
+        log.info(requestId, `Successfully joined channel ${channelId}`);
+        return;
+    } else if (data.error === "already_in_channel") {
+        log.info(requestId, `Already in channel ${channelId}`);
+        return;
+    } else {
+        log.error(requestId, `Failed to join channel: ${data.error}`);
+        throw new Error(`Failed to join channel: ${data.error}`);
+    }
 }
 
 /**
