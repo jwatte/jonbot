@@ -23,6 +23,9 @@ gcloud auth configure-docker us-west1-docker.pkg.dev
 echo "Building application code..."
 pnpm build
 
+# Make sure the script is executable
+chmod +x entrypoint.sh
+
 # Determine host architecture
 HOST_ARCH=$(uname -m)
 echo "Host architecture: ${HOST_ARCH}"
@@ -70,9 +73,6 @@ else
     docker push "${GCLOUD_URL}/${IMAGE_NAME}:latest" --quiet
     docker push "${GCLOUD_URL}/${IMAGE_NAME}:${TIMESTAMP}" --quiet
 fi
-
-# Make sure the script is executable
-chmod +x entrypoint.sh
 
 echo "To deploy to your cluster in GCP, run:"
 echo "    kubectl-cluster.sh ${KUBE_CLUSTER} set image -n ${KUBE_NAMESPACE} ${KUBE_KIND}/${KUBE_NAME} ${IMAGE_NAME}=${GCLOUD_URL}/${IMAGE_NAME}:${TIMESTAMP}"

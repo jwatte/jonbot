@@ -209,11 +209,11 @@ async function postImageToSlack(
                             if (res.statusCode !== 200) {
                                 const errorBody =
                                     data.length > 4000 ? data.substring(0, 4000) + "..." : data;
-                                log.info(
+                                console.log(
                                     `[${requestId}] HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`
                                 );
                             } else {
-                                log.info(
+                                console.log(
                                     `[${requestId}] HTTP request completed successfully. Response size: ${data.length} bytes`
                                 );
                             }
@@ -221,7 +221,7 @@ async function postImageToSlack(
                             const responseData = JSON.parse(data);
                             resolve(responseData);
                         } catch (err) {
-                            log.info(
+                            console.log(
                                 `[${requestId}] Error parsing response: ${(err as Error).message}`
                             );
                             reject(new Error(`Failed to parse Slack API response: ${err}`));
@@ -232,7 +232,7 @@ async function postImageToSlack(
 
             req.on("error", (err) => {
                 // Log network error
-                log.info(`[${requestId}] HTTP request error: ${err.message}`);
+                console.log(`[${requestId}] HTTP request error: ${err.message}`);
                 reject(err);
             });
 
@@ -251,7 +251,7 @@ async function postImageToSlack(
         }
 
         // Step 3: Upload the file to the provided URL
-        log.info(
+        console.log(
             `${new Date().toISOString()} [${requestId}] Uploading file to URL: ${getUploadUrlResponse.upload_url}`
         );
 
@@ -282,7 +282,7 @@ async function postImageToSlack(
                             if (res.statusCode !== 200) {
                                 const errorBody =
                                     data.length > 4000 ? data.substring(0, 4000) + "..." : data;
-                                log.info(
+                                console.log(
                                     `[${requestId}] HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`
                                 );
                                 resolve({
@@ -290,13 +290,13 @@ async function postImageToSlack(
                                     error: `Upload failed with status ${res.statusCode}`,
                                 });
                             } else {
-                                log.info(
+                                console.log(
                                     `[${requestId}] HTTP request completed successfully. Response size: ${data.length} bytes`
                                 );
                                 resolve({ ok: true });
                             }
                         } catch (err) {
-                            log.info(
+                            console.log(
                                 `[${requestId}] Error parsing response: ${(err as Error).message}`
                             );
                             reject(new Error(`Failed to parse upload response: ${err}`));
@@ -307,7 +307,7 @@ async function postImageToSlack(
 
             req.on("error", (err) => {
                 // Log network error
-                log.info(`[${requestId}] HTTP request error: ${err.message}`);
+                console.log(`[${requestId}] HTTP request error: ${err.message}`);
                 reject(err);
             });
 
@@ -323,7 +323,7 @@ async function postImageToSlack(
         }
 
         // Step 4: Complete the upload with files.completeUploadExternal
-        log.info(`[${requestId}] Completing file upload with Slack`);
+        console.log(`${new Date().toISOString()} [${requestId}] Completing file upload with Slack`);
 
         const completeUploadResponse = await new Promise<{
             ok: boolean;
@@ -365,11 +365,11 @@ async function postImageToSlack(
                             if (res.statusCode !== 200) {
                                 const errorBody =
                                     data.length > 4000 ? data.substring(0, 4000) + "..." : data;
-                                log.info(
+                                console.log(
                                     `[${requestId}] HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`
                                 );
                             } else {
-                                log.info(
+                                console.log(
                                     `[${requestId}] HTTP request completed successfully. Response size: ${data.length} bytes`
                                 );
                             }
@@ -377,7 +377,7 @@ async function postImageToSlack(
                             const responseData = JSON.parse(data);
                             resolve(responseData);
                         } catch (err) {
-                            log.info(
+                            console.log(
                                 `[${requestId}] Error parsing response: ${(err as Error).message}`
                             );
                             reject(new Error(`Failed to parse Slack API response: ${err}`));
@@ -388,7 +388,7 @@ async function postImageToSlack(
 
             req.on("error", (err) => {
                 // Log network error
-                log.info(`[${requestId}] HTTP request error: ${err.message}`);
+                console.log(`[${requestId}] HTTP request error: ${err.message}`);
                 reject(err);
             });
 
@@ -411,7 +411,7 @@ async function postImageToSlack(
             response_type: "in_channel",
         });
     } catch (error) {
-        log.error(`[${requestId}] Error posting image to Slack:`, error);
+        console.error(`[${requestId}] Error posting image to Slack:`, error);
         // Send error back to Slack
         await postMessageToSlack(responseUrl, {
             text: `Failed to upload image: ${(error as Error).message}`,
@@ -430,7 +430,7 @@ async function postMessageToSlack(responseUrl: string, message: any): Promise<vo
 
         try {
             // Log the request start
-            log.info(
+            console.log(
                 `${new Date().toISOString()} [${requestId}] HTTP request to ${responseUrl}`
             );
 
@@ -458,17 +458,17 @@ async function postMessageToSlack(responseUrl: string, message: any): Promise<vo
                             // Log error response with body
                             const errorBody =
                                 data.length > 4000 ? data.substring(0, 4000) + "..." : data;
-                            log.info(
+                            console.log(
                                 `[${requestId}] HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`
                             );
 
-                            log.error(
+                            console.error(
                                 `[${requestId}] Slack API request failed with status ${res.statusCode}:`,
                                 data
                             );
                         } else {
                             // Log successful response
-                            log.info(
+                            console.log(
                                 `[${requestId}] HTTP request completed successfully. Response size: ${data.length} bytes`
                             );
                         }
@@ -479,16 +479,16 @@ async function postMessageToSlack(responseUrl: string, message: any): Promise<vo
 
             req.on("error", (err) => {
                 // Log network error
-                log.info(`[${requestId}] HTTP request error: ${err.message}`);
+                console.log(`[${requestId}] HTTP request error: ${err.message}`);
 
-                log.error(`[${requestId}] Error posting to Slack:`, err);
+                console.error(`[${requestId}] Error posting to Slack:`, err);
                 reject(err);
             });
 
             req.write(payload);
             req.end();
         } catch (err) {
-            log.error(`[${requestId}] Error in postMessageToSlack:`, err);
+            console.error(`[${requestId}] Error in postMessageToSlack:`, err);
             reject(err);
         }
     });
@@ -553,18 +553,18 @@ export const generate: ICommand = {
             generateImage(prompt, config.reve_api_key, j.response_url, j.channel_id).catch(
                 (err) => {
                     const errorId = `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                    log.error(`[${errorId}] Error generating image:`, err);
+                    console.error(`[${errorId}] Error generating image:`, err);
                     postMessageToSlack(j.response_url, {
                         text: "An error occurred while generating the image. Please try again later.",
                         response_type: "ephemeral",
                     }).catch((e) =>
-                        log.error(`[${errorId}] Failed to send error message to Slack:`, e)
+                        console.error(`[${errorId}] Failed to send error message to Slack:`, e)
                     );
                 }
             );
         } catch (err) {
             const errorId = `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            log.error(`[${errorId}] Error processing generate command:`, err);
+            console.error(`[${errorId}] Error processing generate command:`, err);
 
             // Return an error message
             if (!res.headersSent) {

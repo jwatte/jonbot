@@ -64,7 +64,12 @@ export async function chatPostMessageSimple(text: string, channel: string): Prom
         channel,
         text,
     });
-    const res = await fetch(process.env.SLACKBOT_POST_URL ?? "", {
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const url = process.env.SLACKBOT_POST_URL ?? "";
+
+    console.log(`[${requestId}] Fetch request to ${url}`);
+
+    const res = await fetch(url, {
         method: "POST",
         body,
         headers: {
@@ -73,10 +78,22 @@ export async function chatPostMessageSimple(text: string, channel: string): Prom
             Accept: "text/plain",
         },
     });
+
     if (!res.ok) {
+        const errorText = await res.text();
+        const errorBody =
+            errorText.length > 4000 ? errorText.substring(0, 4000) + "..." : errorText;
+        console.log(
+            `[${requestId}] Fetch request failed: ${res.status} ${res.statusText}\nResponse body: ${errorBody}`
+        );
         throw new Error(`chat.postMessage failed: ${res.status} ${res.statusText}`);
     }
-    await res.text();
+
+    const responseText = await res.text();
+    console.log(
+        `[${requestId}] Fetch request completed successfully. Response size: ${responseText.length} bytes`
+    );
+
     /*
 Headers {
   date: 'Sat, 01 Mar 2025 21:54:57 GMT',
