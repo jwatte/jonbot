@@ -2,6 +2,7 @@ import http from "http";
 import https from "https";
 import { setConfigValue } from "../config.js";
 import type { ICommandContext } from "../types.js";
+import { log } from "../logging.js";
 
 // Function to validate the REVE API token
 async function validateToken(
@@ -71,7 +72,7 @@ export async function config_view_submission(
             const metadata = JSON.parse(payload.view?.private_metadata || "{}");
             teamId = metadata.teamId || "";
         } catch (err) {
-            console.error("Error parsing private_metadata:", err);
+            log.error("Error parsing private_metadata:", err);
         }
 
         // Fallback to team info from payload if metadata doesn't have team ID
@@ -80,17 +81,11 @@ export async function config_view_submission(
         }
 
         if (!teamId) {
-            console.log(
-                new Date().toISOString(),
-                "WARNING: Could not extract team ID from payload",
-            );
+            log.info("WARNING: Could not extract team ID from payload");
         }
 
         // Debug log to help troubleshoot team ID extraction
-        console.log(
-            new Date().toISOString(),
-            `Save config - Team ID: ${teamId}`,
-        );
+        log.info(`Save config - Team ID: ${teamId}`);
 
         // Get values from state
         const values = payload.view?.state?.values;
@@ -117,10 +112,7 @@ export async function config_view_submission(
                     ) {
                         revetApiKey = values[blockId][actionId].value;
                         found = true;
-                        console.log(
-                            new Date().toISOString(),
-                            `Found API key in block: ${blockId}, action: ${actionId}`,
-                        );
+                        log.info(`Found API key in block: ${blockId}, action: ${actionId}`);
                         break;
                     }
                 }
@@ -128,11 +120,7 @@ export async function config_view_submission(
             }
 
             if (!found) {
-                console.log(
-                    new Date().toISOString(),
-                    "State values structure:",
-                    JSON.stringify(values),
-                );
+                log.info("State values structure:", JSON.stringify(values));
                 throw new Error("Could not find REVE API key in form values");
             }
         }
@@ -142,10 +130,7 @@ export async function config_view_submission(
 
         if (!validationResult.valid) {
             // Return validation error to the modal
-            console.log(
-                new Date().toISOString(),
-                `API key validation failed: ${validationResult.message}`,
-            );
+            log.info(`API key validation failed: ${validationResult.message}`);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.write(
                 JSON.stringify({
@@ -166,13 +151,10 @@ export async function config_view_submission(
         res.write(JSON.stringify({ response_action: "clear" }));
 
         // Log the team ID for debugging
-        console.log(
-            new Date().toISOString(),
-            `Saved configuration for team: ${teamId} with validated API key`,
-        );
+        log.info(`Saved configuration for team: ${teamId} with validated API key`);
     } catch (err) {
         const error = err as Error;
-        console.error("Error saving configuration:", error);
+        log.error("Error saving configuration:", error);
 
         // Return errors to the modal
         res.writeHead(200, { "Content-Type": "application/json" });

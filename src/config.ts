@@ -1,9 +1,12 @@
 import fs from "fs/promises";
 import path from "path";
 
+import { log } from "./logging.js";
+
 // Define the config interface
 export interface JonbotConfig {
     reve_api_key?: string;
+    slack_oauth_token?: string;
 }
 
 // Config file path
@@ -35,7 +38,7 @@ export async function getStoredConfig(teamId?: string): Promise<JonbotConfig> {
             return {};
         }
     } catch (error) {
-        console.error("Error reading config:", error);
+        log.error("Error reading config:", error);
         return {};
     }
 }
@@ -58,7 +61,7 @@ export async function setConfig(
         // Then rename the temp file to the actual config file
         await fs.rename(tempFile, configFile);
     } catch (error) {
-        console.error("Error saving config:", error);
+        log.error("Error saving config:", error);
         throw error;
     }
 }
@@ -79,7 +82,7 @@ export async function setConfigValue(
         // Save the updated config
         await setConfig(config, teamId);
     } catch (error) {
-        console.error(`Error saving config value for ${key}:`, error);
+        log.error(`Error saving config value for ${key}:`, error);
         throw error;
     }
 }

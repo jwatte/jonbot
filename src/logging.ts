@@ -5,11 +5,11 @@ export interface ILogger {
 
 class ConsoleLogger implements ILogger {
     info(...data: unknown[]) {
-        console.log(new Date().toISOString(), "[I]", JSON.stringify(data));
+        console.log(new Date().toISOString(), "[I]", ...data);
     }
 
     error(...data: unknown[]) {
-        console.log(new Date().toISOString(), "[E]", JSON.stringify(data));
+        console.log(new Date().toISOString(), "[E]", ...data);
 
         // Print detailed error information for each error object after the main log line
         data.forEach((item) => {

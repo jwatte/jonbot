@@ -2,6 +2,7 @@ import http from "http";
 import https from "https";
 import sharp from "sharp";
 import { getStoredConfig } from "../config.js";
+import { getSlackToken } from "../util.js";
 import { log } from "../logging.js";
 import type { ICommand, ICommandContext } from "../types.js";
 
@@ -253,11 +254,14 @@ async function joinChannel(
 ): Promise<void> {
     log.info(requestId, `Attempting to join channel ${channelId}`);
 
+    // Get the appropriate token for this team
+    const token = await getSlackToken(channelId.split('_')[0]);
+    
     const response = await fetch("https://slack.com/api/conversations.join", {
         method: "POST",
         headers: {
             "Content-Type": "application/json; charset=utf-8",
-            Authorization: `Bearer ${process.env.SLACKBOT_OAUTH_TOKEN}`,
+            Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
             channel: channelId,
@@ -309,6 +313,9 @@ async function postImageToSlack(
     for (const [key, value] of Object.entries(body)) {
         urlEncoded.append(key, value.toString());
     }
+    // Get the appropriate token for this team
+    const token = await getSlackToken(channelId.split('_')[0]);
+    
     const getUrlResponse = await fetch(
         "https://slack.com/api/files.getUploadURLExternal",
         {
@@ -316,7 +323,7 @@ async function postImageToSlack(
             headers: {
                 "Content-Type":
                     "application/x-www-form-urlencoded; charset=utf-8",
-                Authorization: `Bearer ${process.env.SLACKBOT_OAUTH_TOKEN}`,
+                Authorization: `Bearer ${token}`,
             },
             body: urlEncoded.toString(),
         },
@@ -356,13 +363,15 @@ async function postImageToSlack(
         `HTTP completion request to https://slack.com/api/files.completeUploadExternal`,
         fileId,
     );
+    // We'll reuse the token we got earlier
+    
     const completeResponse = await fetch(
         "https://slack.com/api/files.completeUploadExternal",
         {
             method: "POST",
             headers: {
                 "Content-Type": "application/json; charset=utf-8",
-                Authorization: `Bearer ${process.env.SLACKBOT_OAUTH_TOKEN}`,
+                Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
                 files: [

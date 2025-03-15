@@ -3,6 +3,8 @@ import https from "https";
 
 import type { ICommand, ICommandContext } from "../types.js";
 import { getStoredConfig } from "../config.js";
+import { getSlackToken } from "../util.js";
+import { log } from "../logging.js";
 
 export const config: ICommand = {
     name: "config",
@@ -17,10 +19,7 @@ export const config: ICommand = {
         const teamId = j.team_id || j.team?.id || j.user?.team_id;
 
         // Debug log for team ID extraction
-        console.log(
-            new Date().toISOString(),
-            `Config command - Team ID: ${teamId}, Payload keys: ${Object.keys(j).join(", ")}`,
-        );
+        log.info(`Config command - Team ID: ${teamId}, Payload keys: ${Object.keys(j).join(", ")}`);
 
         // Get config specific to this team
         const currentConfig = await getStoredConfig(teamId);
@@ -37,8 +36,8 @@ export const config: ICommand = {
 
         // Then open a modal using the Slack API
         try {
-            // Prepare modal payload
-            const token = process.env.SLACKBOT_OAUTH_TOKEN;
+            // Get the appropriate token for this team
+            const token = await getSlackToken(teamId);
             const modalPayload = {
                 trigger_id: j.trigger_id,
                 view: {
@@ -112,28 +111,19 @@ export const config: ICommand = {
                         data += chunk;
                     });
                     slackRes.on("end", () => {
-                        console.log(
-                            new Date().toISOString(),
-                            `Slack API response: ${data}`,
-                        );
+                        log.info(`Slack API response: ${data}`);
                     });
                 },
             );
 
             slackReq.on("error", (error) => {
-                console.error(
-                    new Date().toISOString(),
-                    `Error opening modal: ${error.message}`,
-                );
+                log.error(`Error opening modal: ${error.message}`, error);
             });
 
             slackReq.write(postData);
             slackReq.end();
         } catch (error) {
-            console.error(
-                new Date().toISOString(),
-                `Error opening configuration modal: ${error}`,
-            );
+            log.error(`Error opening configuration modal:`, error);
         }
     },
 };

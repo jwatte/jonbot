@@ -2,6 +2,7 @@ import * as http from "http";
 
 import { ICommand, ICommandContext } from "./types.js";
 import { readAllBody } from "./util.js";
+import { log } from "./logging.js";
 
 import { config } from "./commands/config.js";
 import { generate } from "./commands/generate.js";
@@ -34,10 +35,7 @@ const INTERACTIONS: {
         const payload = j.payload ? JSON.parse(j.payload) : j;
         const actionId = payload.actions?.[0]?.action_id;
 
-        console.log(
-            new Date().toISOString(),
-            `unhandled block_actions actionId: ${actionId}`,
-        );
+        log.info(`unhandled block_actions actionId: ${actionId}`);
     },
     view_submission: async (req, res, j, ctx) => {
         const payload = j.payload ? JSON.parse(j.payload) : j;
@@ -47,10 +45,7 @@ const INTERACTIONS: {
             return config_view_submission(req, res, j, ctx);
         }
 
-        console.log(
-            new Date().toISOString(),
-            `unhandled view_submission callbackId: ${callbackId}`,
-        );
+        log.info(`unhandled view_submission callbackId: ${callbackId}`);
     },
 };
 
@@ -68,10 +63,7 @@ export class Jonbot {
         res: http.ServerResponse,
     ): Promise<void> {
         const { j, u } = await readAllBody(req);
-        console.log(
-            new Date().toISOString(),
-            `command: ${u.toString()} payload: ${JSON.stringify(j)}`,
-        );
+        log.info(`command: ${u.toString()} payload: ${JSON.stringify(j)}`);
         const txt = (j.text as string).trim();
         for (const cmd of COMMANDS) {
             if (txt.startsWith(cmd.name)) {
@@ -86,10 +78,7 @@ export class Jonbot {
                 return;
             }
         }
-        console.log(
-            new Date().toISOString(),
-            `unhandled command name: ${txt.substring(0, 12)}...`,
-        );
+        log.info(`unhandled command name: ${txt.substring(0, 12)}...`);
         return help.doCommand(req, res, j, ctx);
     }
 
@@ -98,18 +87,12 @@ export class Jonbot {
         res: http.ServerResponse,
     ): Promise<void> {
         const { j, u } = await readAllBody(req);
-        console.log(
-            new Date().toISOString(),
-            `interact: ${u.toString()} payload: ${JSON.stringify(j)}`,
-        );
+        log.info(`interact: ${u.toString()} payload: ${JSON.stringify(j)}`);
         const fun = INTERACTIONS[j.type];
         if (fun) {
             await fun(req, res, j, ctx);
             if (!res.headersSent) {
-                console.log(
-                    new Date().toISOString(),
-                    `interaction generated no output: ${j.type}`,
-                );
+                log.info(`interaction generated no output: ${j.type}`);
                 res.writeHead(200, {
                     "Content-Type": "application/json",
                     "Content-Length": "12",
@@ -118,10 +101,7 @@ export class Jonbot {
             }
             return;
         }
-        console.log(
-            new Date().toISOString(),
-            `unhandled interaction type: ${j.type}`,
-        );
+        log.info(`unhandled interaction type: ${j.type}`);
     }
 
     async event(
@@ -129,10 +109,7 @@ export class Jonbot {
         res: http.ServerResponse,
     ): Promise<void> {
         const { j, u } = await readAllBody(req);
-        console.log(
-            new Date().toISOString(),
-            `event: ${u.toString()} payload: ${JSON.stringify(j)}`,
-        );
+        log.info(`event: ${u.toString()} payload: ${JSON.stringify(j)}`);
         const type = j.event?.type ?? j.type;
         const fun = EVENTS[type];
         if (fun) {
@@ -146,9 +123,6 @@ export class Jonbot {
             }
             return;
         }
-        console.log(
-            new Date().toISOString(),
-            `unhandled event type: ${j.type}`,
-        );
+        log.info(`unhandled event type: ${j.type}`);
     }
 }

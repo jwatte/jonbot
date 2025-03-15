@@ -4,6 +4,8 @@ import serveStatic from "serve-static";
 
 import { Jonbot } from "./jonbot.js";
 import { getTrustedIp } from "./util.js";
+import { setConfigValue } from "./config.js";
+import { log } from "./logging.js";
 
 const J = new Jonbot();
 
@@ -28,6 +30,68 @@ document.location.href="/jonbot";
 // Create a static file server for the content directory
 const contentPath = path.join(process.cwd(), "content");
 const staticServe = serveStatic(contentPath);
+
+// Slack OAuth installation endpoint
+async function handleOAuthInstall(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+): Promise<void> {
+    try {
+        const u = new URL(req.url ?? "/", `http://${req.headers.host}`);
+        const code = u.searchParams.get("code");
+        const teamId = u.searchParams.get("team");
+        
+        if (!code || !teamId) {
+            res.writeHead(400, { "Content-Type": "text/plain" });
+            res.write("Missing required parameters: code and team");
+            return;
+        }
+        
+        // Exchange code for OAuth token
+        const clientId = process.env.SLACK_CLIENT_ID;
+        const clientSecret = process.env.SLACK_CLIENT_SECRET;
+        
+        if (!clientId || !clientSecret) {
+            log.error("Missing Slack client credentials in environment variables");
+            res.writeHead(500, { "Content-Type": "text/plain" });
+            res.write("Server configuration error");
+            return;
+        }
+        
+        // Call Slack OAuth API to exchange the code for a token
+        const tokenResponse = await fetch("https://slack.com/api/oauth.v2.access", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+                code,
+                client_id: clientId,
+                client_secret: clientSecret,
+            }).toString(),
+        });
+        
+        const tokenData = await tokenResponse.json();
+        
+        if (!tokenData.ok) {
+            log.error("OAuth exchange failed:", tokenData.error);
+            res.writeHead(400, { "Content-Type": "text/plain" });
+            res.write(`Authentication failed: ${tokenData.error}`);
+            return;
+        }
+        
+        // Store the access token in the team's config
+        const accessToken = tokenData.access_token;
+        await setConfigValue("slack_oauth_token", accessToken, teamId);
+        
+        // Redirect to success page
+        res.writeHead(302, { Location: "/jonbot/success.html" });
+    } catch (error) {
+        log.error("OAuth installation error:", error);
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.write(`Error during installation: ${(error as Error).message || String(error)}`);
+    }
+}
 
 // Serve static content for the /jonbot route
 async function serveContent(
@@ -56,6 +120,7 @@ const HANDLERS: {
     "/jonbot/command": J.command.bind(J),
     "/jonbot/interact": J.interact.bind(J),
     "/jonbot/event": J.event.bind(J),
+    "/jonbot/install": handleOAuthInstall,
 };
 
 const server = http.createServer(
@@ -65,12 +130,9 @@ const server = http.createServer(
         const handler = HANDLERS[u.pathname] ?? notFound;
         handler(req, res)
             .catch((err) => {
-                console.log(
-                    new Date().toISOString(),
-                    `ip: ${ip} url: ${u.toString()} error: ${err}`,
-                );
+                log.info(`ip: ${ip} url: ${u.toString()} error: ${err}`);
                 if (err?.stack) {
-                    console.log(err.stack);
+                    log.info(err.stack);
                 }
                 if (!res.headersSent) {
                     res.writeHead(500, { "Content-Type": "text/plain" });
@@ -83,10 +145,7 @@ const server = http.createServer(
                     res.write(`no result\n`);
                 }
                 res.end();
-                console.log(
-                    new Date().toISOString(),
-                    `${req.method} ${req.url} ${res.statusCode} ${ip}`,
-                );
+                log.info(`${req.method} ${req.url} ${res.statusCode} ${ip}`);
             });
     },
 );
@@ -98,6 +157,6 @@ server.listen(
         reuseAddr: true,
     },
     () => {
-        console.log(new Date().toISOString(), `Server is listening on :3000`);
+        log.info(`Server is listening on :3000`);
     },
 );

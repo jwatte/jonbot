@@ -1,4 +1,6 @@
 import http from "http";
+import { getStoredConfig } from "./config.js";
+import { log } from "./logging.js";
 
 export function readAllBody(req: http.IncomingMessage): Promise<{
     j: any;
@@ -7,7 +9,7 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
     const u = new URL(req.url ?? "/", `http://${req.headers.host}`);
     return new Promise((resolve, reject) => {
         req.on("error", (err) => {
-            console.log(new Date().toISOString(), `input error: ${err}`);
+            log.info(`input error: ${err}`);
             reject(err);
         });
         const chunks: Uint8Array[] = [];
@@ -30,7 +32,7 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
                     j = JSON.parse(bufstr);
                 }
                 if (j.payload) {
-                    console.log(`decoding payload`, j);
+                    log.info(`decoding payload`, j);
                     j = JSON.parse(j.payload as string);
                 }
                 if (
@@ -38,7 +40,7 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
                         (process.env.SLACK_VERIFICATION_TOKEN ?? "").trim() &&
                     j.type !== "url_verification"
                 ) {
-                    console.log(new Date().toISOString(), `bad payload`, j);
+                    log.info(`bad payload`, j);
                     reject(
                         new Error(
                             `invalid slack verification token ${j.token} != ${process.env.SLACK_VERIFICATION_TOKEN}`,
@@ -62,10 +64,23 @@ export function getTrustedIp(req: http.IncomingMessage): string {
     return req.socket.remoteAddress ?? "unknown";
 }
 
+// Get the Slack OAuth token for a team
+export async function getSlackToken(teamId?: string): Promise<string> {
+    // If no team ID, use the environment variable as fallback
+    if (!teamId) {
+        return process.env.SLACKBOT_OAUTH_TOKEN ?? "";
+    }
+    
+    // Try to get team-specific token from config
+    const config = await getStoredConfig(teamId);
+    return config.slack_oauth_token ?? process.env.SLACKBOT_OAUTH_TOKEN ?? "";
+}
+
 // Return timestamp of the message created
 export async function chatPostMessageSimple(
     text: string,
     channel: string,
+    teamId?: string,
 ): Promise<string> {
     const body = JSON.stringify({
         channel,
@@ -73,15 +88,18 @@ export async function chatPostMessageSimple(
     });
     const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const url = process.env.SLACKBOT_POST_URL ?? "";
+    
+    // Get the appropriate token for this team
+    const token = await getSlackToken(teamId);
 
-    console.log(`[${requestId}] Fetch request to ${url}`);
+    log.info(`[${requestId}] Fetch request to ${url}`);
 
     const res = await fetch(url, {
         method: "POST",
         body,
         headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.SLACKBOT_OAUTH_TOKEN ?? ""}`,
+            Authorization: `Bearer ${token}`,
             Accept: "text/plain",
         },
     });
@@ -92,18 +110,14 @@ export async function chatPostMessageSimple(
             errorText.length > 4000
                 ? errorText.substring(0, 4000) + "..."
                 : errorText;
-        console.log(
-            `[${requestId}] Fetch request failed: ${res.status} ${res.statusText}\nResponse body: ${errorBody}`,
-        );
+        log.info(`[${requestId}] Fetch request failed: ${res.status} ${res.statusText}\nResponse body: ${errorBody}`);
         throw new Error(
             `chat.postMessage failed: ${res.status} ${res.statusText}`,
         );
     }
 
     const responseText = await res.text();
-    console.log(
-        `[${requestId}] Fetch request completed successfully. Response size: ${responseText.length} bytes`,
-    );
+    log.info(`[${requestId}] Fetch request completed successfully. Response size: ${responseText.length} bytes`);
 
     /*
 Headers {
