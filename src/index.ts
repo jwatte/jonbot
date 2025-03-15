@@ -1,4 +1,6 @@
 import http from "http";
+import path from "path";
+import serveStatic from "serve-static";
 
 import { Jonbot } from "./jonbot.js";
 import { getTrustedIp } from "./util.js";
@@ -17,8 +19,29 @@ async function healthz(
     req: http.IncomingMessage,
     res: http.ServerResponse,
 ): Promise<void> {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.write(`ok\n`);
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.write(`<html><body><script>
+document.location.href="/jonbot";
+</script></body></html>`);
+}
+
+// Create a static file server for the content directory
+const contentPath = path.join(process.cwd(), "content");
+const staticServe = serveStatic(contentPath);
+
+// Serve static content for the /jonbot route
+async function serveContent(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+): Promise<void> {
+    return new Promise((resolve) => {
+        staticServe(req, res, () => {
+            // This is the "next" function that gets called if no file is found
+            res.writeHead(404, { "Content-Type": "text/plain" });
+            res.write(`Static file not found: ${req.url}\n`);
+            resolve();
+        });
+    });
 }
 
 const HANDLERS: {
@@ -29,6 +52,7 @@ const HANDLERS: {
 } = {
     "/": healthz,
     "/healthz": healthz,
+    "/jonbot": serveContent,
     "/jonbot/command": J.command.bind(J),
     "/jonbot/interact": J.interact.bind(J),
     "/jonbot/event": J.event.bind(J),

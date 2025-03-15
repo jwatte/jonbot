@@ -126,7 +126,7 @@ async function generateImage(
                         } catch (err) {
                             log.error(`Error processing API response:`, err);
                             await postMessageToSlack(responseUrl, {
-                                text: "An error occurred while processing the generated image.",
+                                text: `An error occurred while uploading the generated image: ${(err as Error).message ?? err}`,
                                 response_type: "ephemeral",
                             });
                             resolve();

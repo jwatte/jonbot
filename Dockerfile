@@ -30,6 +30,8 @@ COPY entrypoint.sh .
 # Make sure the entrypoint is executable
 RUN chmod +x entrypoint.sh
 
+# Copy static content
+COPY content ./content
 # Copy dist directory from build
 COPY dist ./
 
