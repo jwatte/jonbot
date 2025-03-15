@@ -4,6 +4,7 @@ import { ICommand, ICommandContext } from "./types.js";
 import { readAllBody } from "./util.js";
 
 import { config } from "./commands/config.js";
+import { generate } from "./commands/generate.js";
 import { help } from "./commands/help.js";
 import { app_mention } from "./events/app_mention.js";
 import { url_verification } from "./events/url_verification.js";
@@ -47,7 +48,7 @@ const INTERACTIONS: {
 	}
 };
 
-const COMMANDS: ICommand[] = [help, config];
+const COMMANDS: ICommand[] = [help, config, generate];
 
 const ctx: ICommandContext = {
 	EVENTS,

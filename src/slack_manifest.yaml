@@ -14,7 +14,7 @@ features:
       url: https://jonbot.in-reve.com/jonbot/command
       description: Jonbot commands
       should_escape: true
-      usage_hint: "help | config"
+      usage_hint: "help | config | generate <prompt>"
 oauth_config:
   scopes:
     bot:
@@ -28,6 +28,7 @@ oauth_config:
       - incoming-webhook
       - app_mentions:read
       - reactions:read
+      - files:write
 settings:
   event_subscriptions:
     request_url: https://jonbot.in-reve.com/jonbot/event
