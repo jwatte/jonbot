@@ -6,7 +6,7 @@ export interface ICommandContext {
             req: http.IncomingMessage,
             res: http.ServerResponse,
             j: any,
-            ctx: ICommandContext
+            ctx: ICommandContext,
         ) => Promise<void>;
     };
     readonly INTERACTIONS: {
@@ -14,7 +14,7 @@ export interface ICommandContext {
             req: http.IncomingMessage,
             res: http.ServerResponse,
             j: any,
-            ctx: ICommandContext
+            ctx: ICommandContext,
         ) => Promise<void>;
     };
     readonly COMMANDS: ICommand[];
@@ -27,6 +27,6 @@ export interface ICommand {
         req: http.IncomingMessage,
         res: http.ServerResponse,
         j: any,
-        ctx: ICommandContext
+        ctx: ICommandContext,
     ): Promise<void>;
 }

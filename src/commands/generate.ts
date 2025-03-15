@@ -2,11 +2,8 @@ import http from "http";
 import https from "https";
 import sharp from "sharp";
 import { getStoredConfig } from "../config.js";
-import type { ICommand, ICommandContext } from "../types.js";
-import fs from "fs";
-import path from "path";
-import os from "os";
 import { log } from "../logging.js";
+import type { ICommand, ICommandContext } from "../types.js";
 
 /**
  * Sends a prompt to the REVE API and posts the generated image
@@ -15,11 +12,11 @@ async function generateImage(
     prompt: string,
     apiKey: string,
     responseUrl: string,
-    channelId: string
+    channelId: string,
 ): Promise<void> {
     return new Promise((resolve, reject) => {
         // Create a unique request ID at the beginning of the function
-        const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const requestId = `[req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}]`;
 
         try {
             const url = "https://preview.reve.art/api/misc/simple_generation";
@@ -30,7 +27,7 @@ async function generateImage(
             });
 
             // Log the request start
-            log.info(`[${requestId}] HTTP request to ${url}`);
+            log.info(requestId, `HTTP request to ${url}`);
 
             // Make the API request to generate the image
             const req = https.request(
@@ -56,19 +53,23 @@ async function generateImage(
                             if (res.statusCode !== 200) {
                                 // Log error response with body
                                 const errorBody =
-                                    data.length > 4000 ? data.substring(0, 4000) + "..." : data;
+                                    data.length > 4000
+                                        ? data.substring(0, 4000) + "..."
+                                        : data;
                                 log.info(
-                                    `[${requestId}] HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`
+                                    requestId,
+                                    `HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`,
                                 );
 
                                 log.error(
-                                    `API request failed with status code ${res.statusCode}`
+                                    `API request failed with status code ${res.statusCode}`,
                                 );
                                 let errorMessage;
                                 try {
                                     const jsonResponse = JSON.parse(data);
                                     errorMessage =
-                                        jsonResponse.message || `Error ${res.statusCode}`;
+                                        jsonResponse.message ||
+                                        `Error ${res.statusCode}`;
                                 } catch (e) {
                                     errorMessage = `Error ${res.statusCode}`;
                                 }
@@ -84,17 +85,27 @@ async function generateImage(
 
                             // Log successful response
                             log.info(
-                                `[${requestId}] HTTP request completed successfully. Response size: ${data.length} bytes`
+                                requestId,
+                                `HTTP request completed successfully. Response size: ${data.length} bytes`,
                             );
 
                             const jsonResponse = JSON.parse(data);
+                            const b64buf = Buffer.from(
+                                jsonResponse.image_base64,
+                                "base64",
+                            );
+                            const jpgBuf = await sharp(b64buf)
+                                .keepMetadata()
+                                .jpeg({ quality: 90 })
+                                .toBuffer();
                             if (jsonResponse.image_base64) {
                                 // Post image back to Slack
                                 await postImageToSlack(
+                                    jpgBuf,
+                                    channelId,
                                     responseUrl,
-                                    jsonResponse.image_base64,
-                                    prompt,
-                                    channelId
+                                    prompt.substring(0, 64) +
+                                        (prompt.length > 64 ? "..." : ""),
                                 );
                                 resolve();
                             } else {
@@ -106,10 +117,7 @@ async function generateImage(
                                 resolve();
                             }
                         } catch (err) {
-                            log.error(
-                                `Error processing API response:`,
-                                err
-                            );
+                            log.error(`Error processing API response:`, err);
                             await postMessageToSlack(responseUrl, {
                                 text: "An error occurred while processing the generated image.",
                                 response_type: "ephemeral",
@@ -117,14 +125,12 @@ async function generateImage(
                             resolve();
                         }
                     });
-                }
+                },
             );
 
             req.on("error", async (err) => {
                 // Log network error
-                log.info(
-                    `[${requestId}] HTTP request error: ${err.message}`
-                );
+                log.info(requestId, `HTTP request error: ${err.message}`);
 
                 log.error(`Error making API request:`, err);
                 await postMessageToSlack(responseUrl, {
@@ -137,302 +143,26 @@ async function generateImage(
             req.write(payload);
             req.end();
         } catch (err) {
-            log.error(
-                `[${requestId}] Error in generateImage:`,
-                err
-            );
+            log.error(requestId, `Error in generateImage:`, err);
             reject(err);
         }
     });
 }
 
-async function postImageToSlack(
-    responseUrl: string,
-    webpBase64: string,
-    prompt: string,
-    channelId: string
-): Promise<void> {
-    // Create a unique request ID at the beginning of the function
-    const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    try {
-        // Step 1: Convert base64 to buffer
-        const webpBuffer = Buffer.from(webpBase64, "base64");
-
-        // Step 1.1: Convert WEBP to PNG using Sharp
-        const pngBuffer = await sharp(webpBuffer).toFormat("png").toBuffer();
-
-        // Step 1.2: Write buffer to temporary file
-        const tmpDir = os.tmpdir();
-        const fileName = `image_${Date.now()}.png`;
-        const filePath = path.join(tmpDir, fileName);
-
-        // Write PNG to temp file
-        fs.writeFileSync(filePath, pngBuffer);
-
-        // Step 2: Get upload URL using files.getUploadURLExternal
-        log.info(`[${requestId}] Getting upload URL from Slack`);
-
-        const getUploadUrlResponse = await new Promise<{
-            ok: boolean;
-            error?: string;
-            upload_url?: string;
-            file_id?: string;
-        }>((resolve, reject) => {
-            const payload = JSON.stringify({
-                filename: fileName,
-                length: pngBuffer.length,
-                alt_text: `Generated image for prompt: "${prompt}"`,
-                title: `Generated image: ${prompt.substring(0, 80)}${prompt.length > 80 ? "..." : ""}`,
-            });
-
-            const req = https.request(
-                {
-                    method: "POST",
-                    hostname: "slack.com",
-                    path: "/api/files.getUploadURLExternal",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Content-Length": Buffer.byteLength(payload),
-                        Authorization: `Bearer ${process.env.SLACKBOT_OAUTH_TOKEN ?? ""}`,
-                    },
-                },
-                (res) => {
-                    let data = "";
-                    res.on("data", (chunk) => {
-                        data += chunk;
-                    });
-
-                    res.on("end", () => {
-                        try {
-                            // Log the response
-                            if (res.statusCode !== 200) {
-                                const errorBody =
-                                    data.length > 4000 ? data.substring(0, 4000) + "..." : data;
-                                log.info(
-                                    `[${requestId}] HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`
-                                );
-                            } else {
-                                log.info(
-                                    `[${requestId}] HTTP request completed successfully. Response size: ${data.length} bytes`
-                                );
-                            }
-
-                            const responseData = JSON.parse(data);
-                            resolve(responseData);
-                        } catch (err) {
-                            log.info(
-                                `[${requestId}] Error parsing response: ${(err as Error).message}`
-                            );
-                            reject(new Error(`Failed to parse Slack API response: ${err}`));
-                        }
-                    });
-                }
-            );
-
-            req.on("error", (err) => {
-                // Log network error
-                log.info(`[${requestId}] HTTP request error: ${err.message}`);
-                reject(err);
-            });
-
-            req.write(payload);
-            req.end();
-        });
-
-        if (
-            !getUploadUrlResponse.ok ||
-            !getUploadUrlResponse.upload_url ||
-            !getUploadUrlResponse.file_id
-        ) {
-            throw new Error(
-                `Failed to get upload URL: ${getUploadUrlResponse.error || "Unknown error"}`
-            );
-        }
-
-        // Step 3: Upload the file to the provided URL
-        log.info(
-            `${new Date().toISOString()} [${requestId}] Uploading file to URL: ${getUploadUrlResponse.upload_url}`
-        );
-
-        const uploadUrl = new URL(getUploadUrlResponse.upload_url);
-        const uploadResponse = await new Promise<{
-            ok: boolean;
-            error?: string;
-        }>((resolve, reject) => {
-            const req = https.request(
-                {
-                    method: "PUT",
-                    hostname: uploadUrl.hostname,
-                    path: uploadUrl.pathname + uploadUrl.search,
-                    headers: {
-                        "Content-Type": "application/octet-stream",
-                        "Content-Length": pngBuffer.length,
-                    },
-                },
-                (res) => {
-                    let data = "";
-                    res.on("data", (chunk) => {
-                        data += chunk;
-                    });
-
-                    res.on("end", () => {
-                        try {
-                            // Log the response
-                            if (res.statusCode !== 200) {
-                                const errorBody =
-                                    data.length > 4000 ? data.substring(0, 4000) + "..." : data;
-                                log.info(
-                                    `[${requestId}] HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`
-                                );
-                                resolve({
-                                    ok: false,
-                                    error: `Upload failed with status ${res.statusCode}`,
-                                });
-                            } else {
-                                log.info(
-                                    `[${requestId}] HTTP request completed successfully. Response size: ${data.length} bytes`
-                                );
-                                resolve({ ok: true });
-                            }
-                        } catch (err) {
-                            log.info(
-                                `[${requestId}] Error parsing response: ${(err as Error).message}`
-                            );
-                            reject(new Error(`Failed to parse upload response: ${err}`));
-                        }
-                    });
-                }
-            );
-
-            req.on("error", (err) => {
-                // Log network error
-                log.info(`[${requestId}] HTTP request error: ${err.message}`);
-                reject(err);
-            });
-
-            // Write the file buffer directly to the request
-            req.write(pngBuffer);
-            req.end();
-        });
-
-        if (!uploadResponse.ok) {
-            throw new Error(
-                `Failed to upload file to URL: ${uploadResponse.error || "Unknown error"}`
-            );
-        }
-
-        // Step 4: Complete the upload with files.completeUploadExternal
-        log.info(`[${requestId}] Completing file upload with Slack`);
-
-        const completeUploadResponse = await new Promise<{
-            ok: boolean;
-            error?: string;
-            file?: { id: string; permalink: string };
-        }>((resolve, reject) => {
-            const payload = JSON.stringify({
-                files: [
-                    {
-                        id: getUploadUrlResponse.file_id,
-                        title: `Generated image: ${prompt.substring(0, 80)}${prompt.length > 80 ? "..." : ""}`,
-                        alt_text: `Generated image for prompt: "${prompt}"`,
-                        initial_comment: `Generated image for prompt: "${prompt}"`,
-                        channels: [channelId],
-                    },
-                ],
-            });
-
-            const req = https.request(
-                {
-                    method: "POST",
-                    hostname: "slack.com",
-                    path: "/api/files.completeUploadExternal",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Content-Length": Buffer.byteLength(payload),
-                        Authorization: `Bearer ${process.env.SLACKBOT_OAUTH_TOKEN ?? ""}`,
-                    },
-                },
-                (res) => {
-                    let data = "";
-                    res.on("data", (chunk) => {
-                        data += chunk;
-                    });
-
-                    res.on("end", () => {
-                        try {
-                            // Log the response
-                            if (res.statusCode !== 200) {
-                                const errorBody =
-                                    data.length > 4000 ? data.substring(0, 4000) + "..." : data;
-                                log.info(
-                                    `[${requestId}] HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`
-                                );
-                            } else {
-                                log.info(
-                                    `[${requestId}] HTTP request completed successfully. Response size: ${data.length} bytes`
-                                );
-                            }
-
-                            const responseData = JSON.parse(data);
-                            resolve(responseData);
-                        } catch (err) {
-                            log.info(
-                                `[${requestId}] Error parsing response: ${(err as Error).message}`
-                            );
-                            reject(new Error(`Failed to parse Slack API response: ${err}`));
-                        }
-                    });
-                }
-            );
-
-            req.on("error", (err) => {
-                // Log network error
-                log.info(`[${requestId}] HTTP request error: ${err.message}`);
-                reject(err);
-            });
-
-            req.write(payload);
-            req.end();
-        });
-
-        // Clean up the temporary file
-        fs.unlinkSync(filePath);
-
-        if (!completeUploadResponse.ok) {
-            throw new Error(
-                `Failed to complete upload: ${completeUploadResponse.error || "Unknown error"}`
-            );
-        }
-
-        // Notify that the upload was successful
-        await postMessageToSlack(responseUrl, {
-            text: `Generated image for prompt: "${prompt}"`,
-            response_type: "in_channel",
-        });
-    } catch (error) {
-        log.error(`[${requestId}] Error posting image to Slack:`, error);
-        // Send error back to Slack
-        await postMessageToSlack(responseUrl, {
-            text: `Failed to upload image: ${(error as Error).message}`,
-            response_type: "ephemeral",
-        });
-    }
-}
-
 /**
  * Posts a message to Slack via the response_url
  */
-async function postMessageToSlack(responseUrl: string, message: any): Promise<void> {
+async function postMessageToSlack(
+    responseUrl: string,
+    message: any,
+): Promise<void> {
     return new Promise((resolve, reject) => {
         // Create a unique request ID at the beginning of the function
-        const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const requestId = `[req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}]`;
 
         try {
             // Log the request start
-            log.info(
-                `${new Date().toISOString()} [${requestId}] HTTP request to ${responseUrl}`
-            );
+            log.info(requestId, `HTTP request to ${responseUrl}`);
 
             const payload = JSON.stringify(message);
 
@@ -457,41 +187,177 @@ async function postMessageToSlack(responseUrl: string, message: any): Promise<vo
                         if (res.statusCode !== 200) {
                             // Log error response with body
                             const errorBody =
-                                data.length > 4000 ? data.substring(0, 4000) + "..." : data;
+                                data.length > 4000
+                                    ? data.substring(0, 4000) + "..."
+                                    : data;
                             log.info(
-                                `[${requestId}] HTTP request failed: ${res.statusCode} ${res.statusMessage}\nResponse body: ${errorBody}`
+                                requestId,
+                                `HTTP request failed: ${res.statusCode} ${res.statusMessage}`,
+                                `Response body: ${errorBody}`,
                             );
 
                             log.error(
-                                `[${requestId}] Slack API request failed with status ${res.statusCode}:`,
-                                data
+                                requestId,
+                                `Slack API request failed with status ${res.statusCode}:`,
+                                data,
                             );
                         } else {
                             // Log successful response
                             log.info(
-                                `[${requestId}] HTTP request completed successfully. Response size: ${data.length} bytes`
+                                requestId,
+
+                                `HTTP request completed successfully. Response size: ${data.length} bytes`,
                             );
                         }
                         resolve();
                     });
-                }
+                },
             );
 
             req.on("error", (err) => {
                 // Log network error
-                log.info(`[${requestId}] HTTP request error: ${err.message}`);
-
-                log.error(`[${requestId}] Error posting to Slack:`, err);
+                log.error(requestId, `Error posting to Slack:`, err);
                 reject(err);
             });
 
             req.write(payload);
             req.end();
         } catch (err) {
-            log.error(`[${requestId}] Error in postMessageToSlack:`, err);
+            log.error(requestId, `Error in postMessageToSlack:`, err);
             reject(err);
         }
     });
+}
+
+function promptify(prompt: string): string {
+    return "reve" + prompt.replace(/[^a-zA-Z0-9]/g, "").substring(0, 60);
+}
+
+/**
+ * Uploads a PNG image to a Slack channel using external upload.
+ *
+ * @param imageBuffer - Buffer containing the PNG image.
+ * @param channelId - Slack channel ID where the image should be posted.
+ * @param responseUrl - The response URL from your command handler.
+ * @param apiToken - Your Slack API token.
+ * @returns The JSON response from the complete upload API.
+ */
+async function postImageToSlack(
+    imageBuffer: Buffer,
+    channelId: string,
+    responseUrl: string,
+    prompt: string,
+): Promise<any> {
+    // Step 1: Get the external upload URL from Slack.
+    const requestId = `[req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}]`;
+    const body = {
+        filename: `${promptify(prompt)}.jpg`,
+        length: imageBuffer.length,
+        alt_text: prompt,
+    };
+    log.info(
+        requestId,
+        `HTTP request to https://slack.com/api/files.getUploadURLExternal`,
+        body,
+    );
+    const urlEncoded = new URLSearchParams();
+    for (const [key, value] of Object.entries(body)) {
+        urlEncoded.append(key, value.toString());
+    }
+    const getUrlResponse = await fetch(
+        "https://slack.com/api/files.getUploadURLExternal",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type":
+                    "application/x-www-form-urlencoded; charset=utf-8",
+                Authorization: `Bearer ${process.env.SLACKBOT_OAUTH_TOKEN}`,
+            },
+            body: urlEncoded.toString(),
+        },
+    );
+
+    const getUrlData = await getUrlResponse.json();
+    if (!getUrlData.ok) {
+        log.error(requestId, `Error getting upload URL: ${getUrlData.error}`);
+        throw new Error(`Error getting upload URL: ${getUrlData.error}`);
+    }
+    // Assume the API returns an "upload_url" and a "file_id".
+    const uploadUrl: string = getUrlData.upload_url;
+    const fileId: string = getUrlData.file_id;
+
+    // Step 2: POST the image to the obtained external upload URL.
+    log.info(
+        requestId,
+        `HTTP file upload request to ${uploadUrl}`,
+        imageBuffer.length,
+    );
+    const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "image/jpeg", // Ensure the content type matches your image format.
+        },
+        body: imageBuffer,
+    });
+    if (!uploadResponse.ok) {
+        log.error(requestId, `Error uploading image to external URL`);
+        throw new Error("Error uploading image to external URL");
+    }
+
+    // Step 3: Complete the upload by calling Slack's complete upload API,
+    // now using the channelId.
+    log.info(
+        requestId,
+        `HTTP completion request to https://slack.com/api/files.completeUploadExternal`,
+        fileId,
+    );
+    const completeResponse = await fetch(
+        "https://slack.com/api/files.completeUploadExternal",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                Authorization: `Bearer ${process.env.SLACKBOT_OAUTH_TOKEN}`,
+            },
+            body: JSON.stringify({
+                files: [
+                    {
+                        id: fileId,
+                        title:
+                            prompt.substring(0, 64) +
+                            (prompt.length > 64 ? "..." : ""),
+                    },
+                ],
+                channels: channelId, // Use the channelId to specify where the file should be posted.
+                // Additional parameters (e.g., initial_comment) can be added here.
+            }),
+        },
+    );
+    const completeData = await completeResponse.json();
+    if (!completeData.ok) {
+        log.error(requestId, `Error completing upload: ${completeData.error}`);
+        throw new Error(`Error completing upload: ${completeData.error}`);
+    }
+
+    // Optionally, send a confirmation back using the responseUrl.
+    log.info(
+        requestId,
+        `HTTP thread response to ${responseUrl}`,
+        "Image uploaded successfully!",
+    );
+    await fetch(responseUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            response_type: "in_channel",
+            text: prompt,
+        }),
+    });
+    // don't care if it doesn't work
+
+    return completeData;
 }
 
 export const generate: ICommand = {
@@ -501,7 +367,7 @@ export const generate: ICommand = {
         req: http.IncomingMessage,
         res: http.ServerResponse,
         j: any,
-        ctx: ICommandContext
+        ctx: ICommandContext,
     ): Promise<void> {
         try {
             // Extract team ID from the request
@@ -519,7 +385,7 @@ export const generate: ICommand = {
                     JSON.stringify({
                         response_type: "ephemeral",
                         text: "Please provide a prompt after 'generate'. Example: `/jonbot generate a cat sitting on a rainbow`",
-                    })
+                    }),
                 );
                 return;
             }
@@ -533,7 +399,7 @@ export const generate: ICommand = {
                     JSON.stringify({
                         response_type: "ephemeral",
                         text: "REVE API key is not configured. Please use `/jonbot config` to set up your API key first.",
-                    })
+                    }),
                 );
                 return;
             }
@@ -544,24 +410,30 @@ export const generate: ICommand = {
                 JSON.stringify({
                     response_type: "ephemeral",
                     text: `Generating image for prompt: "${prompt}"... This may take a few moments.`,
-                })
+                }),
             );
 
             // Generate the image asynchronously
             // We'll use the response_url to post back when the image is ready
             // and channel_id to upload the file
-            generateImage(prompt, config.reve_api_key, j.response_url, j.channel_id).catch(
-                (err) => {
-                    const errorId = `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                    log.error(`[${errorId}] Error generating image:`, err);
-                    postMessageToSlack(j.response_url, {
-                        text: "An error occurred while generating the image. Please try again later.",
-                        response_type: "ephemeral",
-                    }).catch((e) =>
-                        log.error(`[${errorId}] Failed to send error message to Slack:`, e)
-                    );
-                }
-            );
+            generateImage(
+                prompt,
+                config.reve_api_key,
+                j.response_url,
+                j.channel_id,
+            ).catch((err) => {
+                const errorId = `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                log.error(`[${errorId}] Error generating image:`, err);
+                postMessageToSlack(j.response_url, {
+                    text: "An error occurred while generating the image. Please try again later.",
+                    response_type: "ephemeral",
+                }).catch((e) =>
+                    log.error(
+                        `[${errorId}] Failed to send error message to Slack:`,
+                        e,
+                    ),
+                );
+            });
         } catch (err) {
             const errorId = `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             log.error(`[${errorId}] Error processing generate command:`, err);
@@ -573,7 +445,7 @@ export const generate: ICommand = {
                     JSON.stringify({
                         response_type: "ephemeral",
                         text: "An error occurred while processing your request. Please try again later.",
-                    })
+                    }),
                 );
             }
         }

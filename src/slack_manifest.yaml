@@ -1,47 +1,47 @@
 display_information:
-  name: Jonbot
+    name: Jonbot
 features:
-  bot_user:
-    display_name: Jonbot
-    always_online: true
-  shortcuts:
-    - name: Make Image
-      type: message
-      callback_id: make_image
-      description: Make an image with this text as prompt
-  slash_commands:
-    - command: /jonbot
-      url: https://jonbot.in-reve.com/jonbot/command
-      description: Jonbot commands
-      should_escape: true
-      usage_hint: "help | config | generate <prompt>"
+    bot_user:
+        display_name: Jonbot
+        always_online: true
+    shortcuts:
+        - name: Make Image
+          type: message
+          callback_id: make_image
+          description: Make an image with this text as prompt
+    slash_commands:
+        - command: /jonbot
+          url: https://jonbot.in-reve.com/jonbot/command
+          description: Jonbot commands
+          should_escape: true
+          usage_hint: "help | config | generate <prompt>"
 oauth_config:
-  scopes:
-    bot:
-      - chat:write
-      - chat:write.public
-      - channels:read
-      - channels:join
-      - channels:write.topic
-      - channels:history
-      - commands
-      - incoming-webhook
-      - app_mentions:read
-      - reactions:read
-      - files:write
-      - files:read
+    scopes:
+        bot:
+            - chat:write
+            - chat:write.public
+            - channels:read
+            - channels:join
+            - channels:write.topic
+            - channels:history
+            - commands
+            - incoming-webhook
+            - app_mentions:read
+            - reactions:read
+            - files:write
+            - files:read
 settings:
-  event_subscriptions:
-    request_url: https://jonbot.in-reve.com/jonbot/event
-    bot_events:
-      - app_mention
-      - app_uninstalled
-      - channel_left
-      - reaction_added
-      - tokens_revoked
-  interactivity:
-    is_enabled: true
-    request_url: https://jonbot.in-reve.com/jonbot/interact
-  org_deploy_enabled: false
-  socket_mode_enabled: false
-  token_rotation_enabled: false
+    event_subscriptions:
+        request_url: https://jonbot.in-reve.com/jonbot/event
+        bot_events:
+            - app_mention
+            - app_uninstalled
+            - channel_left
+            - reaction_added
+            - tokens_revoked
+    interactivity:
+        is_enabled: true
+        request_url: https://jonbot.in-reve.com/jonbot/interact
+    org_deploy_enabled: false
+    socket_mode_enabled: false
+    token_rotation_enabled: false

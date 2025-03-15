@@ -41,7 +41,10 @@ export async function getStoredConfig(teamId?: string): Promise<JonbotConfig> {
 }
 
 // Save config to file for a specific team using safe save method
-export async function setConfig(config: JonbotConfig, teamId?: string): Promise<void> {
+export async function setConfig(
+    config: JonbotConfig,
+    teamId?: string,
+): Promise<void> {
     try {
         // Ensure config directory exists
         await fs.mkdir(CONFIG_DIR, { recursive: true });
@@ -64,7 +67,7 @@ export async function setConfig(config: JonbotConfig, teamId?: string): Promise<
 export async function setConfigValue(
     key: keyof JonbotConfig,
     value: string,
-    teamId?: string
+    teamId?: string,
 ): Promise<void> {
     try {
         // Get the existing config first to preserve other settings

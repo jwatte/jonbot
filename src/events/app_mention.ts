@@ -8,7 +8,7 @@ export async function app_mention(
     req: http.IncomingMessage,
     res: http.ServerResponse,
     j: AppMentionEvent,
-    ctx: ICommandContext
+    ctx: ICommandContext,
 ): Promise<void> {
     app_mention_internal(j); // run async
     return Promise.resolve();

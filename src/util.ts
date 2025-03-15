@@ -18,7 +18,10 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
             try {
                 const bufstr = Buffer.concat(chunks).toString();
                 let j: { [key: string]: unknown };
-                if (req.headers["content-type"] === "application/x-www-form-urlencoded") {
+                if (
+                    req.headers["content-type"] ===
+                    "application/x-www-form-urlencoded"
+                ) {
                     j = {};
                     for (const [k, v] of new URLSearchParams(bufstr)) {
                         j[k] = v;
@@ -31,14 +34,15 @@ export function readAllBody(req: http.IncomingMessage): Promise<{
                     j = JSON.parse(j.payload as string);
                 }
                 if (
-                    j.token !== (process.env.SLACK_VERIFICATION_TOKEN ?? "").trim() &&
+                    j.token !==
+                        (process.env.SLACK_VERIFICATION_TOKEN ?? "").trim() &&
                     j.type !== "url_verification"
                 ) {
                     console.log(new Date().toISOString(), `bad payload`, j);
                     reject(
                         new Error(
-                            `invalid slack verification token ${j.token} != ${process.env.SLACK_VERIFICATION_TOKEN}`
-                        )
+                            `invalid slack verification token ${j.token} != ${process.env.SLACK_VERIFICATION_TOKEN}`,
+                        ),
                     );
                 } else {
                     resolve({ j, u });
@@ -59,7 +63,10 @@ export function getTrustedIp(req: http.IncomingMessage): string {
 }
 
 // Return timestamp of the message created
-export async function chatPostMessageSimple(text: string, channel: string): Promise<string> {
+export async function chatPostMessageSimple(
+    text: string,
+    channel: string,
+): Promise<string> {
     const body = JSON.stringify({
         channel,
         text,
@@ -82,16 +89,20 @@ export async function chatPostMessageSimple(text: string, channel: string): Prom
     if (!res.ok) {
         const errorText = await res.text();
         const errorBody =
-            errorText.length > 4000 ? errorText.substring(0, 4000) + "..." : errorText;
+            errorText.length > 4000
+                ? errorText.substring(0, 4000) + "..."
+                : errorText;
         console.log(
-            `[${requestId}] Fetch request failed: ${res.status} ${res.statusText}\nResponse body: ${errorBody}`
+            `[${requestId}] Fetch request failed: ${res.status} ${res.statusText}\nResponse body: ${errorBody}`,
         );
-        throw new Error(`chat.postMessage failed: ${res.status} ${res.statusText}`);
+        throw new Error(
+            `chat.postMessage failed: ${res.status} ${res.statusText}`,
+        );
     }
 
     const responseText = await res.text();
     console.log(
-        `[${requestId}] Fetch request completed successfully. Response size: ${responseText.length} bytes`
+        `[${requestId}] Fetch request completed successfully. Response size: ${responseText.length} bytes`,
     );
 
     /*

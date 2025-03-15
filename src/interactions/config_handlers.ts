@@ -4,7 +4,9 @@ import { setConfigValue } from "../config.js";
 import type { ICommandContext } from "../types.js";
 
 // Function to validate the REVE API token
-async function validateToken(token: string): Promise<{ valid: boolean; message?: string }> {
+async function validateToken(
+    token: string,
+): Promise<{ valid: boolean; message?: string }> {
     return new Promise((resolve) => {
         const req = https.request(
             {
@@ -29,18 +31,23 @@ async function validateToken(token: string): Promise<{ valid: boolean; message?:
                         let errorMessage;
                         try {
                             const jsonResponse = JSON.parse(data);
-                            errorMessage = jsonResponse.message || `Error ${res.statusCode}`;
+                            errorMessage =
+                                jsonResponse.message ||
+                                `Error ${res.statusCode}`;
                         } catch (e) {
                             errorMessage = `Error ${res.statusCode}`;
                         }
                         resolve({ valid: false, message: errorMessage });
                     }
                 });
-            }
+            },
         );
 
         req.on("error", (err) => {
-            resolve({ valid: false, message: `Connection error: ${err.message}` });
+            resolve({
+                valid: false,
+                message: `Connection error: ${err.message}`,
+            });
         });
 
         req.end();
@@ -51,11 +58,12 @@ export async function config_view_submission(
     req: http.IncomingMessage,
     res: http.ServerResponse,
     j: any,
-    ctx: ICommandContext
+    ctx: ICommandContext,
 ): Promise<void> {
     try {
         // Parse payload if it's a string
-        const payload = typeof j.payload === "string" ? JSON.parse(j.payload) : j;
+        const payload =
+            typeof j.payload === "string" ? JSON.parse(j.payload) : j;
 
         // Extract the team ID from private_metadata if available
         let teamId = "";
@@ -74,12 +82,15 @@ export async function config_view_submission(
         if (!teamId) {
             console.log(
                 new Date().toISOString(),
-                "WARNING: Could not extract team ID from payload"
+                "WARNING: Could not extract team ID from payload",
             );
         }
 
         // Debug log to help troubleshoot team ID extraction
-        console.log(new Date().toISOString(), `Save config - Team ID: ${teamId}`);
+        console.log(
+            new Date().toISOString(),
+            `Save config - Team ID: ${teamId}`,
+        );
 
         // Get values from state
         const values = payload.view?.state?.values;
@@ -100,12 +111,15 @@ export async function config_view_submission(
 
             for (const blockId in values) {
                 for (const actionId in values[blockId]) {
-                    if (actionId === "reve_api_key_input" && values[blockId][actionId].value) {
+                    if (
+                        actionId === "reve_api_key_input" &&
+                        values[blockId][actionId].value
+                    ) {
                         revetApiKey = values[blockId][actionId].value;
                         found = true;
                         console.log(
                             new Date().toISOString(),
-                            `Found API key in block: ${blockId}, action: ${actionId}`
+                            `Found API key in block: ${blockId}, action: ${actionId}`,
                         );
                         break;
                     }
@@ -117,7 +131,7 @@ export async function config_view_submission(
                 console.log(
                     new Date().toISOString(),
                     "State values structure:",
-                    JSON.stringify(values)
+                    JSON.stringify(values),
                 );
                 throw new Error("Could not find REVE API key in form values");
             }
@@ -130,7 +144,7 @@ export async function config_view_submission(
             // Return validation error to the modal
             console.log(
                 new Date().toISOString(),
-                `API key validation failed: ${validationResult.message}`
+                `API key validation failed: ${validationResult.message}`,
             );
             res.writeHead(200, { "Content-Type": "application/json" });
             res.write(
@@ -139,7 +153,7 @@ export async function config_view_submission(
                     errors: {
                         reve_api_key_block: `Invalid API key: ${validationResult.message}`,
                     },
-                })
+                }),
             );
             return;
         }
@@ -154,7 +168,7 @@ export async function config_view_submission(
         // Log the team ID for debugging
         console.log(
             new Date().toISOString(),
-            `Saved configuration for team: ${teamId} with validated API key`
+            `Saved configuration for team: ${teamId} with validated API key`,
         );
     } catch (err) {
         const error = err as Error;
@@ -168,7 +182,7 @@ export async function config_view_submission(
                 errors: {
                     reve_api_key_block: `Error saving configuration: ${error.message || String(error)}`,
                 },
-            })
+            }),
         );
     }
 }

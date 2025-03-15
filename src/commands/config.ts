@@ -11,7 +11,7 @@ export const config: ICommand = {
         req: http.IncomingMessage,
         res: http.ServerResponse,
         j: any,
-        ctx: ICommandContext
+        ctx: ICommandContext,
     ): Promise<void> {
         // Extract team ID from the request
         const teamId = j.team_id || j.team?.id || j.user?.team_id;
@@ -19,7 +19,7 @@ export const config: ICommand = {
         // Debug log for team ID extraction
         console.log(
             new Date().toISOString(),
-            `Config command - Team ID: ${teamId}, Payload keys: ${Object.keys(j).join(", ")}`
+            `Config command - Team ID: ${teamId}, Payload keys: ${Object.keys(j).join(", ")}`,
         );
 
         // Get config specific to this team
@@ -31,7 +31,7 @@ export const config: ICommand = {
             JSON.stringify({
                 response_type: "ephemeral",
                 text: "Opening configuration dialog...",
-            })
+            }),
         );
         res.end();
 
@@ -112,19 +112,28 @@ export const config: ICommand = {
                         data += chunk;
                     });
                     slackRes.on("end", () => {
-                        console.log(new Date().toISOString(), `Slack API response: ${data}`);
+                        console.log(
+                            new Date().toISOString(),
+                            `Slack API response: ${data}`,
+                        );
                     });
-                }
+                },
             );
 
             slackReq.on("error", (error) => {
-                console.error(new Date().toISOString(), `Error opening modal: ${error.message}`);
+                console.error(
+                    new Date().toISOString(),
+                    `Error opening modal: ${error.message}`,
+                );
             });
 
             slackReq.write(postData);
             slackReq.end();
         } catch (error) {
-            console.error(new Date().toISOString(), `Error opening configuration modal: ${error}`);
+            console.error(
+                new Date().toISOString(),
+                `Error opening configuration modal: ${error}`,
+            );
         }
     },
 };

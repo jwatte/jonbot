@@ -15,7 +15,7 @@ const EVENTS: {
         req: http.IncomingMessage,
         res: http.ServerResponse,
         j: any,
-        ctx: ICommandContext
+        ctx: ICommandContext,
     ) => Promise<void>;
 } = {
     url_verification,
@@ -27,14 +27,17 @@ const INTERACTIONS: {
         req: http.IncomingMessage,
         res: http.ServerResponse,
         j: any,
-        ctx: ICommandContext
+        ctx: ICommandContext,
     ) => Promise<void>;
 } = {
     block_actions: async (req, res, j, ctx) => {
         const payload = j.payload ? JSON.parse(j.payload) : j;
         const actionId = payload.actions?.[0]?.action_id;
 
-        console.log(new Date().toISOString(), `unhandled block_actions actionId: ${actionId}`);
+        console.log(
+            new Date().toISOString(),
+            `unhandled block_actions actionId: ${actionId}`,
+        );
     },
     view_submission: async (req, res, j, ctx) => {
         const payload = j.payload ? JSON.parse(j.payload) : j;
@@ -46,7 +49,7 @@ const INTERACTIONS: {
 
         console.log(
             new Date().toISOString(),
-            `unhandled view_submission callbackId: ${callbackId}`
+            `unhandled view_submission callbackId: ${callbackId}`,
         );
     },
 };
@@ -60,11 +63,14 @@ const ctx: ICommandContext = {
 };
 
 export class Jonbot {
-    async command(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    async command(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> {
         const { j, u } = await readAllBody(req);
         console.log(
             new Date().toISOString(),
-            `command: ${u.toString()} payload: ${JSON.stringify(j)}`
+            `command: ${u.toString()} payload: ${JSON.stringify(j)}`,
         );
         const txt = (j.text as string).trim();
         for (const cmd of COMMANDS) {
@@ -80,21 +86,30 @@ export class Jonbot {
                 return;
             }
         }
-        console.log(new Date().toISOString(), `unhandled command name: ${txt.substring(0, 12)}...`);
+        console.log(
+            new Date().toISOString(),
+            `unhandled command name: ${txt.substring(0, 12)}...`,
+        );
         return help.doCommand(req, res, j, ctx);
     }
 
-    async interact(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    async interact(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> {
         const { j, u } = await readAllBody(req);
         console.log(
             new Date().toISOString(),
-            `interact: ${u.toString()} payload: ${JSON.stringify(j)}`
+            `interact: ${u.toString()} payload: ${JSON.stringify(j)}`,
         );
         const fun = INTERACTIONS[j.type];
         if (fun) {
             await fun(req, res, j, ctx);
             if (!res.headersSent) {
-                console.log(new Date().toISOString(), `interaction generated no output: ${j.type}`);
+                console.log(
+                    new Date().toISOString(),
+                    `interaction generated no output: ${j.type}`,
+                );
                 res.writeHead(200, {
                     "Content-Type": "application/json",
                     "Content-Length": "12",
@@ -103,14 +118,20 @@ export class Jonbot {
             }
             return;
         }
-        console.log(new Date().toISOString(), `unhandled interaction type: ${j.type}`);
+        console.log(
+            new Date().toISOString(),
+            `unhandled interaction type: ${j.type}`,
+        );
     }
 
-    async event(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    async event(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> {
         const { j, u } = await readAllBody(req);
         console.log(
             new Date().toISOString(),
-            `event: ${u.toString()} payload: ${JSON.stringify(j)}`
+            `event: ${u.toString()} payload: ${JSON.stringify(j)}`,
         );
         const type = j.event?.type ?? j.type;
         const fun = EVENTS[type];
@@ -125,6 +146,9 @@ export class Jonbot {
             }
             return;
         }
-        console.log(new Date().toISOString(), `unhandled event type: ${j.type}`);
+        console.log(
+            new Date().toISOString(),
+            `unhandled event type: ${j.type}`,
+        );
     }
 }

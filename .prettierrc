@@ -1,25 +1,5 @@
 {
-    "tabWidth": 4,
-    "useTabs": false,
-    "trailingComma": "es5",
-    "semi": true,
-    "singleQuote": false,
-    "printWidth": 100,
-    "overrides": [
-        {
-            "files": ["*.yaml", "*.yml"],
-            "options": {
-                "tabWidth": 2,
-                "useTabs": false,
-                "singleQuote": false
-            }
-        },
-        {
-            "files": ["Dockerfile"],
-            "options": {
-                "tabWidth": 2,
-                "useTabs": false
-            }
-        }
-    ]
+  "tabWidth": 4,
+  "useTabs": false,
+  "singleQuote": false
 }
