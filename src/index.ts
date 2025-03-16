@@ -49,11 +49,11 @@ async function handleOAuthInstall(
 
         // Exchange code for OAuth token
         const clientId = process.env.SLACKBOT_CLIENT_ID;
-        const clientSecret = process.env.SLACKBOT_CLIENT_SECRET;
+        const clientSecret = process.env.SLACKBOT_OUTGOING_CLIENT_SECRET;
 
         if (!clientId || !clientSecret) {
             log.error(
-                "Missing Slack client credentials: SLACKBOT_CLIENT_ID and/or SLACKBOT_CLIENT_SECRET environment variables are not set",
+                "Missing Slack client credentials: SLACKBOT_CLIENT_ID and/or SLACKBOT_OUTGOING_CLIENT_SECRET environment variables are not set",
             );
             res.writeHead(500, { "Content-Type": "text/plain" });
             res.write("Server configuration error");

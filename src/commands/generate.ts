@@ -8,12 +8,19 @@ import type { ICommand, ICommandContext } from "../types.js";
 
 /**
  * Sends a prompt to the REVE API and posts the generated image
+ *
+ * @param prompt - The prompt to generate an image from
+ * @param apiKey - The REVE API key to use
+ * @param responseUrl - The Slack response URL to post back to
+ * @param channelId - The Slack channel ID to post the image to
+ * @param teamId - The Slack team ID for retrieving the correct OAuth token
  */
 async function generateImage(
     prompt: string,
     apiKey: string,
     responseUrl: string,
     channelId: string,
+    teamId: string, // Add teamId parameter
 ): Promise<void> {
     return new Promise((resolve, reject) => {
         // Create a unique request ID at the beginning of the function
@@ -22,7 +29,7 @@ async function generateImage(
         try {
             // Try to join the channel first, but don't await it
             // This runs in parallel with the image generation
-            joinChannel(requestId, channelId).catch((err) => {
+            joinChannel(requestId, channelId, teamId).catch((err) => {
                 log.info(requestId, `Failed to join channel: ${err.message}`);
                 // Continue anyway - we'll handle "not_in_channel" errors later if needed
             });
@@ -114,6 +121,7 @@ async function generateImage(
                                     responseUrl,
                                     prompt.substring(0, 64) +
                                         (prompt.length > 64 ? "..." : ""),
+                                    teamId,
                                 );
                                 resolve();
                             } else {
@@ -246,16 +254,21 @@ function promptify(prompt: string): string {
  *
  * @param requestId - The request ID for logging
  * @param channelId - The ID of the channel to join
+ * @param teamId - The ID of the team the channel belongs to
  * @returns A promise that resolves if the join is successful, or rejects with an error
  */
 async function joinChannel(
     requestId: string,
     channelId: string,
+    teamId: string,
 ): Promise<void> {
-    log.info(requestId, `Attempting to join channel ${channelId}`);
+    log.info(
+        requestId,
+        `Attempting to join channel ${channelId} for team ${teamId}`,
+    );
 
     // Get the appropriate token for this team
-    const token = await getSlackToken(channelId.split("_")[0]);
+    const token = await getSlackToken(teamId);
 
     const response = await fetch("https://slack.com/api/conversations.join", {
         method: "POST",
@@ -288,7 +301,8 @@ async function joinChannel(
  * @param imageBuffer - Buffer containing the PNG image.
  * @param channelId - Slack channel ID where the image should be posted.
  * @param responseUrl - The response URL from your command handler.
- * @param apiToken - Your Slack API token.
+ * @param prompt - The prompt that was used to generate the image.
+ * @param teamId - The Slack team ID for retrieving the correct OAuth token.
  * @returns The JSON response from the complete upload API.
  */
 async function postImageToSlack(
@@ -296,6 +310,7 @@ async function postImageToSlack(
     channelId: string,
     responseUrl: string,
     prompt: string,
+    teamId: string,
 ): Promise<any> {
     // Step 1: Get the external upload URL from Slack.
     const requestId = `[req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}]`;
@@ -314,7 +329,7 @@ async function postImageToSlack(
         urlEncoded.append(key, value.toString());
     }
     // Get the appropriate token for this team
-    const token = await getSlackToken(channelId.split("_")[0]);
+    const token = await getSlackToken(teamId);
 
     const getUrlResponse = await fetch(
         "https://slack.com/api/files.getUploadURLExternal",
@@ -475,6 +490,7 @@ export const generate: ICommand = {
                 config.reve_api_key,
                 j.response_url,
                 j.channel_id,
+                teamId, // Pass the team ID
             ).catch((err) => {
                 const errorId = `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                 log.error(`[${errorId}] Error generating image:`, err);
