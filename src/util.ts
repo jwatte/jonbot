@@ -68,12 +68,13 @@ export function getTrustedIp(req: http.IncomingMessage): string {
 export async function getSlackToken(teamId?: string): Promise<string> {
     // If no team ID, use the environment variable as fallback
     if (!teamId) {
-        return process.env.SLACKBOT_OAUTH_TOKEN ?? "";
+        log.error(`Missing teamId in getSlackToken()`);
+        throw new Error("Missing teamId in getSlackToken");
     }
 
     // Try to get team-specific token from config
     const config = await getStoredConfig(teamId);
-    return config.slack_oauth_token ?? process.env.SLACKBOT_OAUTH_TOKEN ?? "";
+    return config.slack_oauth_token ?? "";
 }
 
 // Return timestamp of the message created

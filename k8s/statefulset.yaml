@@ -18,11 +18,6 @@ spec:
         image: us-west1-docker.pkg.dev/dev-infra-422317/reve-containers/jonbot:latest
         imagePullPolicy: Always
         env:
-        - name: SLACKBOT_OAUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: slackbot
-              key: oauth_token
         - name: SLACKBOT_POST_URL
           valueFrom:
             secretKeyRef:

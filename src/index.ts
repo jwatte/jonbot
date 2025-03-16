@@ -23,7 +23,7 @@ async function healthz(
 ): Promise<void> {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.write(`<html><body><script>
-document.location.href="/jonbot";
+document.location.href="/content/";
 </script></body></html>`);
 }
 
@@ -40,21 +40,20 @@ async function handleOAuthInstall(
     try {
         const u = new URL(req.url ?? "/", `http://${req.headers.host}`);
         const code = u.searchParams.get("code");
-        const teamId = u.searchParams.get("team");
 
-        if (!code || !teamId) {
+        if (!code) {
             res.writeHead(400, { "Content-Type": "text/plain" });
-            res.write("Missing required parameters: code and team");
+            res.write("Missing required parameters: code and/or team");
             return;
         }
 
         // Exchange code for OAuth token
-        const clientId = process.env.SLACK_CLIENT_ID;
-        const clientSecret = process.env.SLACK_CLIENT_SECRET;
+        const clientId = process.env.SLACKBOT_CLIENT_ID;
+        const clientSecret = process.env.SLACKBOT_CLIENT_SECRET;
 
         if (!clientId || !clientSecret) {
             log.error(
-                "Missing Slack client credentials in environment variables",
+                "Missing Slack client credentials: SLACKBOT_CLIENT_ID and/or SLACKBOT_CLIENT_SECRET environment variables are not set",
             );
             res.writeHead(500, { "Content-Type": "text/plain" });
             res.write("Server configuration error");
@@ -88,10 +87,18 @@ async function handleOAuthInstall(
 
         // Store the access token in the team's config
         const accessToken = tokenData.access_token;
+        const teamId = tokenData.team?.id;
+        log.info(`Storing access token for team ${teamId}: ${accessToken}`);
+        if (!teamId) {
+            log.error("No team ID received from Slack OAuth response");
+            res.writeHead(400, { "Content-Type": "text/plain" });
+            res.write("Authentication failed: No team ID received");
+            return;
+        }
         await setConfigValue("slack_oauth_token", accessToken, teamId);
 
         // Redirect to success page
-        res.writeHead(302, { Location: "/jonbot/success.html" });
+        res.writeHead(302, { Location: "/content/success.html" });
     } catch (error) {
         log.error("OAuth installation error:", error);
         res.writeHead(500, { "Content-Type": "text/plain" });
@@ -101,25 +108,68 @@ async function handleOAuthInstall(
     }
 }
 
-// Serve static content for the /jonbot route
+// Serve static content for the /content route
 function serveContent(
     req: http.IncomingMessage,
     res: http.ServerResponse,
 ): Promise<void> {
-    if (req.url?.startsWith("/jonbot")) {
-        req.url = req.url.substring(7) ?? "/";
-    }
-    if (req.url === "/") {
-        res.writeHead(302, { Location: "/jonbot/index.html" });
-        res.end();
-        return Promise.resolve();
-    }
-    staticServe(req, res, () => {
-        // This is the "next" function that gets called if no file is found
-        res.writeHead(404, { "Content-Type": "text/plain" });
-        res.write(`Static file not found: ${req.url}\n`);
+    return new Promise<void>((resolve) => {
+        // Create a safe copy of the URL
+        const originalUrl = req.url;
+
+        // Handle /content paths
+        if (req.url?.startsWith("/content/")) {
+            req.url = req.url.substring(8); // Skip the "/content/" prefix
+        } else if (req.url === "/content") {
+            req.url = "/";
+        }
+
+        // Ensure we have a valid URL
+        if (!req.url || req.url === "") {
+            req.url = "/";
+        }
+
+        log.info(`Static content request: ${originalUrl} → ${req.url}`);
+
+        // Handle root redirect case
+        if (req.url === "/") {
+            res.writeHead(302, { Location: "/content/index.html" });
+            res.end();
+            resolve();
+            return;
+        }
+
+        // Track if the response has been handled
+        let isResolved = false;
+
+        // Listen for the 'finish' event to handle successful responses
+        res.on("finish", () => {
+            if (!isResolved) {
+                isResolved = true;
+                resolve();
+            }
+        });
+
+        // Handle errors too
+        res.on("error", () => {
+            if (!isResolved) {
+                isResolved = true;
+                resolve();
+            }
+        });
+
+        // Serve the static file
+        staticServe(req, res, () => {
+            // This is the "next" function that gets called if no file is found
+            if (!isResolved) {
+                isResolved = true;
+                res.writeHead(404, { "Content-Type": "text/plain" });
+                res.write(`Static file not found: ${req.url}\n`);
+                res.end();
+                resolve();
+            }
+        });
     });
-    return Promise.resolve();
 }
 
 const HANDLERS: {
@@ -130,18 +180,29 @@ const HANDLERS: {
 } = {
     "/": healthz,
     "/healthz": healthz,
-    "/jonbot": serveContent,
+    "/content": serveContent,
     "/jonbot/command": J.command.bind(J),
     "/jonbot/interact": J.interact.bind(J),
     "/jonbot/event": J.event.bind(J),
-    "/jonbot/install": handleOAuthInstall,
+    "/install": handleOAuthInstall,
 };
 
 const server = http.createServer(
     (req: http.IncomingMessage, res: http.ServerResponse) => {
         const ip = getTrustedIp(req);
         const u = new URL(req.url ?? "/", `http://${req.headers.host}`);
-        const handler = HANDLERS[u.pathname] ?? notFound;
+
+        // Find the appropriate handler
+        let handler;
+
+        // Handle all /content/* paths with the static content handler
+        if (u.pathname.startsWith("/content/") || u.pathname === "/content") {
+            handler = serveContent;
+        } else {
+            // Use the exact path handler or fallback to notFound
+            handler = HANDLERS[u.pathname] ?? notFound;
+        }
+
         handler(req, res)
             .catch((err) => {
                 log.info(`ip: ${ip} url: ${u.toString()} error: ${err}`);
