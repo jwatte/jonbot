@@ -22,8 +22,13 @@ oauth_config:
             - chat:write.public
             - channels:read
             - channels:join
-            - channels:write.topic
             - channels:history
+            - groups:read
+            - groups:history
+            - im:read
+            - im:history
+            - mpim:read
+            - mpim:history
             - commands
             - incoming-webhook
             - app_mentions:read

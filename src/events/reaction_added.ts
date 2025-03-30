@@ -24,49 +24,62 @@ export async function reaction_added(
 }
 
 async function handleReactionAdded(j: ReactionAddedEvent): Promise<void> {
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     try {
         const { event } = j;
 
         // Only process reactions to messages
         if (event.item.type !== "message") {
             log.info(
-                `Ignoring reaction to non-message item: ${event.item.type}`,
+                `[${requestId}] Ignoring reaction to non-message item: ${event.item.type}`,
             );
             return;
         }
 
         // Only process robot_face emoji
         if (event.reaction !== "robot_face") {
-            log.info(`Ignoring non-robot_face reaction: ${event.reaction}`);
+            log.info(
+                `[${requestId}] Ignoring non-robot_face reaction: ${event.reaction}`,
+            );
             return;
         }
 
         log.info(
-            `Processing robot_face reaction to message in channel ${event.item.channel} with ts ${event.item.ts}`,
+            `[${requestId}] Processing robot_face reaction to message in channel ${event.item.channel} with ts ${event.item.ts}`,
         );
 
         // Fetch the message that was reacted to
         const message = await fetchSlackMessage(
+            requestId,
             event.item.channel,
             event.item.ts,
             j.team_id,
         );
 
+        // Log the message details for debugging
+        log.info(`Message details:`, {
+            text: message.text?.substring(0, 100),
+            message_ts: message.message_ts,
+            thread_ts: message.thread_ts,
+        });
+
         // Don't process empty messages
-        if (!message.text.trim()) {
-            log.info("Ignoring empty message");
+        if (!message.text?.trim()) {
+            log.info(`[${requestId}] Ignoring empty message`);
             return;
         }
 
         // Get the API key for this team
         const config = await getStoredConfig(j.team_id);
         if (!config.reve_api_key) {
-            log.error(`No REVE API key configured for team ${j.team_id}`);
+            log.error(
+                `[${requestId}] No REVE API key configured for team ${j.team_id}`,
+            );
             await chatPostMessageSimple(
                 "I need an API key to generate images. Please use `/jonbot config` to set up your REVE API key.",
                 event.item.channel,
                 j.team_id,
-                event.item.ts,
+                message.thread_ts, // Use thread_ts directly
             );
             return;
         }
@@ -76,23 +89,27 @@ async function handleReactionAdded(j: ReactionAddedEvent): Promise<void> {
             `Generating an image from: "${message.text.substring(0, 100)}${message.text.length > 100 ? "..." : ""}"`,
             event.item.channel,
             j.team_id,
-            event.item.ts,
+            message.thread_ts, // Use thread_ts directly
         );
-
-        // If the message is in a thread, use the parent message's timestamp
-        // Otherwise, use the message's timestamp
-        const threadTs = message.thread_ts || event.item.ts;
 
         // Generate the image
         await generateImage(
-            message.text,
-            config.reve_api_key,
-            "https://slack.com/api/chat.postMessage", // Fake response URL
-            event.item.channel,
-            j.team_id,
-            threadTs, // Post in the thread
+            {
+                prompt: message.text,
+                apiKey: config.reve_api_key,
+                requestId: `reaction-${event.event_ts}`,
+            },
+            {
+                responseUrl: "https://slack.com/api/chat.postMessage",
+                channelId: event.item.channel,
+                teamId: j.team_id,
+                threadTs: message.thread_ts, // Use thread_ts directly
+            },
         );
     } catch (err) {
-        log.error(`Error in handleReactionAdded: ${err}`);
+        log.error(`[${requestId}] Error in handleReactionAdded: ${err}`);
+        if (err instanceof Error) {
+            log.error(`Error details: ${err.stack}`);
+        }
     }
 }

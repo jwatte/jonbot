@@ -70,14 +70,18 @@ export const generate: ICommand = {
             // Generate the image asynchronously
             // We'll use the response_url to post back when the image is ready
             // and channel_id to upload the file
-            generateImage(
-                prompt,
-                config.reve_api_key,
-                j.response_url,
-                j.channel_id,
-                teamId, // Pass the team ID
-                requestId, // Pass the request ID
-                j.thread_ts, // Pass the thread timestamp if available
+            await generateImage(
+                {
+                    prompt,
+                    apiKey: config.reve_api_key,
+                    requestId,
+                },
+                {
+                    responseUrl: j.response_url,
+                    channelId: j.channel_id,
+                    teamId,
+                    threadTs: j.thread_ts,
+                },
             ).catch((err) => {
                 const errorId = `err-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
                 log.error(`[${errorId}] Error generating image:`, err);

@@ -87,6 +87,7 @@ export async function chatPostMessageSimple(
     const messagePayload: any = {
         channel,
         text,
+        thread_ts,
     };
 
     // If thread_ts is provided, add it to the payload to create a threaded reply
@@ -96,7 +97,7 @@ export async function chatPostMessageSimple(
 
     const body = JSON.stringify(messagePayload);
     const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-    const url = process.env.SLACKBOT_POST_URL ?? "";
+    const url = `https://slack.com/api/chat.postMessage`;
 
     // Get the appropriate token for this team
     const token = await getSlackToken(teamId);
@@ -107,9 +108,9 @@ export async function chatPostMessageSimple(
         method: "POST",
         body,
         headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json;charset=utf-8",
             Authorization: `Bearer ${token}`,
-            Accept: "text/plain",
+            Accept: "application/json",
         },
     });
 
@@ -127,9 +128,9 @@ export async function chatPostMessageSimple(
         );
     }
 
-    const responseText = await res.text();
+    const responseText = await res.json();
     log.info(
-        `[${requestId}] Fetch request completed successfully. Response size: ${responseText.length} bytes`,
+        `[${requestId}] Fetch request completed successfully. Response: ${JSON.stringify(responseText)}`,
     );
 
     /*
@@ -161,12 +162,16 @@ Headers {
 
 // Fetch a message from Slack
 export async function fetchSlackMessage(
+    requestId: string,
     channel: string,
     ts: string,
     teamId: string,
-): Promise<{ text: string; user: string; thread_ts?: string }> {
-    const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-
+): Promise<{
+    text: string;
+    user: string;
+    thread_ts?: string;
+    message_ts: string;
+}> {
     // Get the appropriate token for this team
     const token = await getSlackToken(teamId);
 
@@ -175,6 +180,7 @@ export async function fetchSlackMessage(
     );
 
     const url = `https://slack.com/api/conversations.history?channel=${channel}&latest=${ts}&limit=1&inclusive=true`;
+    log.info(`[${requestId}] Fetch request to ${url}`);
 
     const res = await fetch(url, {
         method: "GET",
@@ -187,7 +193,7 @@ export async function fetchSlackMessage(
     if (!res.ok) {
         const errorText = await res.text();
         log.error(
-            `[${requestId}] Failed to fetch message: ${res.status} ${res.statusText}\nResponse: ${errorText}`,
+            `[${requestId}] Failed to fetch message: ${res.status} ${res.statusText} Response: ${errorText}`,
         );
         throw new Error(
             `Failed to fetch message: ${res.status} ${res.statusText}`,
@@ -206,7 +212,20 @@ export async function fetchSlackMessage(
         throw new Error("No messages found");
     }
 
-    const message = data.messages[0];
+    let message = data.messages[0];
+    if (message.ts !== ts) {
+        log.info(
+            `[${requestId}] Successfully fetched channel message at: ${message.ts}`,
+        );
+        const newMessage = await fetchSlackResponse(
+            requestId,
+            token,
+            channel,
+            message.thread_ts,
+            ts,
+        );
+        message = newMessage;
+    }
     log.info(
         `[${requestId}] Successfully fetched message: ${message.text.substring(0, 100)}${message.text.length > 100 ? "..." : ""}`,
     );
@@ -215,5 +234,48 @@ export async function fetchSlackMessage(
         text: message.text,
         user: message.user,
         thread_ts: message.thread_ts,
+        message_ts: message.ts,
     };
+}
+
+async function fetchSlackResponse(
+    requestId: string,
+    token: string,
+    channel: string,
+    thread_ts: string,
+    ts: string,
+): Promise<any> {
+    const url = new URL(`https://slack.com/api/conversations.replies`);
+    url.searchParams.set("channel", channel);
+    url.searchParams.set("ts", thread_ts);
+    url.searchParams.set("oldest", ts);
+    url.searchParams.set("latest", ts);
+    url.searchParams.set("inclusive", "true");
+    log.info(`[${requestId}] Fetch request to ${url}`);
+    const res = await fetch(url, {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+        },
+    });
+    if (!res.ok) {
+        const errorText = (await res.text()) ?? "";
+        log.error(
+            `[${requestId}] Failed to fetch message: ${res.status} ${res.statusText} Response: ${errorText.substring(0, 100)}`,
+        );
+        throw new Error(
+            `Failed to fetch message: ${res.status} ${res.statusText}`,
+        );
+    }
+    const data = await res.json();
+    if (!data.ok) {
+        log.error(`[${requestId}] Slack API error: ${data.error}`);
+        throw new Error(`Slack API error: ${data.error}`);
+    }
+    if (!data.messages || data.messages.length === 0) {
+        log.error(`[${requestId}] No messages found`);
+        throw new Error("No messages found");
+    }
+    return data.messages[data.messages.length - 1];
 }

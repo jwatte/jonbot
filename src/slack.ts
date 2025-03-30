@@ -15,19 +15,25 @@ export async function postMessageToSlack(
     thread_ts?: string,
 ): Promise<void> {
     return new Promise((resolve, reject) => {
-        // Create a unique request ID at the beginning of the function
         const requestId = `[req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}]`;
 
         try {
-            // Log the request start
-            log.info(requestId, `HTTP request to ${responseUrl}`);
+            // Log the message details for debugging
+            log.info(requestId, `Posting message with details:`, {
+                responseUrl,
+                thread_ts,
+                messageKeys: Object.keys(message),
+            });
 
             // If thread_ts is provided and not already in the message, add it
             if (thread_ts && !message.thread_ts) {
                 message.thread_ts = thread_ts;
+                log.info(requestId, `Added thread_ts: ${thread_ts}`);
             }
 
             const payload = JSON.stringify(message);
+            // Log the final payload for debugging
+            log.info(requestId, `Final payload:`, payload);
 
             const urlObj = new URL(responseUrl);
             const req = https.request(
