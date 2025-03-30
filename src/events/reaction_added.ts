@@ -1,6 +1,6 @@
 import http from "http";
-import { generateImage } from "../commands/generate.js";
 import { getStoredConfig } from "../config.js";
+import { generateImage } from "../image.js";
 import { log } from "../logging.js";
 import type { ICommandContext } from "../types.js";
 import { chatPostMessageSimple, fetchSlackMessage } from "../util.js";
