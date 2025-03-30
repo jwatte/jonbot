@@ -1,28 +1,28 @@
 {
-  "name": "jonbot",
-  "version": "1.0.0",
-  "description": "Simple slack bot",
-  "main": "dist/index.js",
-  "scripts": {
-    "clean": "rm -rf dist",
-    "build": "prettier --write src && tsc --pretty",
-    "serve": "tsc --pretty && node dist/index.js",
-    "test": "tsc --noEmit",
-    "format": "prettier --write src"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "Private",
-  "devDependencies": {
-    "@types/node": "^22.13.5",
-    "@types/serve-static": "^1.15.7",
-    "prettier": "^3.5.3",
-    "typescript": "^5.7.3"
-  },
-  "dependencies": {
-    "form-data": "^4.0.2",
-    "path": "^0.12.7",
-    "serve-static": "^1.16.2",
-    "sharp": "^0.33.5"
-  }
+    "name": "jonbot",
+    "version": "1.0.0",
+    "description": "Simple slack bot",
+    "main": "dist/index.js",
+    "scripts": {
+        "clean": "rm -rf dist",
+        "build": "prettier --write src && tsc --pretty",
+        "serve": "tsc --pretty && node dist/index.js",
+        "test": "tsc --noEmit",
+        "format": "prettier --write src"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "Private",
+    "devDependencies": {
+        "@types/node": "^22.13.5",
+        "@types/serve-static": "^1.15.7",
+        "prettier": "^3.5.3",
+        "typescript": "^5.7.3"
+    },
+    "dependencies": {
+        "form-data": "^4.0.2",
+        "path": "^0.12.7",
+        "serve-static": "^1.16.2",
+        "sharp": "^0.33.5"
+    }
 }

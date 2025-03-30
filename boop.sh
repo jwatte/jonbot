@@ -2,7 +2,7 @@
 set -e
 npm run build
 (cd dist && tar cfz /tmp/jonbot.tgz .)
-KD="kubectl --context gke_dev-infra-422317_us-west1-b_dev-infra"
+KD="kubectl --context gke_dev-infra-422317_us-west1_dev-infra-2"
 pods=$($KD get pod -n jonbot --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
 for pod in $pods; do
 	$KD cp -n jonbot /tmp/jonbot.tgz $pod:/jonbot/jonbot.tgz

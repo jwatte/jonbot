@@ -5,7 +5,7 @@ IMAGE_NAME=jonbot
 KUBE_KIND=statefulset
 KUBE_NAME=jonbot
 KUBE_NAMESPACE=jonbot
-KUBE_CLUSTER=dev-infra
+KUBE_CLUSTER=dev-infra-2
 
 GCLOUD_PROJECT="dev-infra-422317"
 GCLOUD_URL="us-west1-docker.pkg.dev/${GCLOUD_PROJECT}/reve-containers"
