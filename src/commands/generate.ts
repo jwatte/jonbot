@@ -2,9 +2,9 @@ import http from "http";
 import https from "https";
 import sharp from "sharp";
 import { getStoredConfig } from "../config.js";
-import { getSlackToken } from "../util.js";
 import { log } from "../logging.js";
 import type { ICommand, ICommandContext } from "../types.js";
+import { getSlackToken } from "../util.js";
 
 /**
  * Sends a prompt to the REVE API and posts the generated image
@@ -14,17 +14,19 @@ import type { ICommand, ICommandContext } from "../types.js";
  * @param responseUrl - The Slack response URL to post back to
  * @param channelId - The Slack channel ID to post the image to
  * @param teamId - The Slack team ID for retrieving the correct OAuth token
+ * @param thread_ts - Optional thread timestamp to post the image as a reply in a thread
  */
-async function generateImage(
+export async function generateImage(
     prompt: string,
     apiKey: string,
     responseUrl: string,
     channelId: string,
-    teamId: string, // Add teamId parameter
+    teamId: string,
+    thread_ts?: string,
 ): Promise<void> {
     return new Promise((resolve, reject) => {
         // Create a unique request ID at the beginning of the function
-        const requestId = `[req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}]`;
+        const requestId = `[req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}]`;
 
         try {
             // Try to join the channel first, but don't await it
@@ -122,6 +124,7 @@ async function generateImage(
                                     prompt.substring(0, 64) +
                                         (prompt.length > 64 ? "..." : ""),
                                     teamId,
+                                    thread_ts,
                                 );
                                 resolve();
                             } else {
@@ -167,18 +170,28 @@ async function generateImage(
 
 /**
  * Posts a message to Slack via the response_url
+ *
+ * @param responseUrl - The Slack response URL to post back to
+ * @param message - The message payload to send
+ * @param thread_ts - Optional thread timestamp to post the message as a reply in a thread
  */
-async function postMessageToSlack(
+export async function postMessageToSlack(
     responseUrl: string,
     message: any,
+    thread_ts?: string,
 ): Promise<void> {
     return new Promise((resolve, reject) => {
         // Create a unique request ID at the beginning of the function
-        const requestId = `[req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}]`;
+        const requestId = `[req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}]`;
 
         try {
             // Log the request start
             log.info(requestId, `HTTP request to ${responseUrl}`);
+
+            // If thread_ts is provided and not already in the message, add it
+            if (thread_ts && !message.thread_ts) {
+                message.thread_ts = thread_ts;
+            }
 
             const payload = JSON.stringify(message);
 
@@ -303,17 +316,19 @@ async function joinChannel(
  * @param responseUrl - The response URL from your command handler.
  * @param prompt - The prompt that was used to generate the image.
  * @param teamId - The Slack team ID for retrieving the correct OAuth token.
+ * @param thread_ts - Optional thread timestamp to post the image as a reply in a thread.
  * @returns The JSON response from the complete upload API.
  */
-async function postImageToSlack(
+export async function postImageToSlack(
     imageBuffer: Buffer,
     channelId: string,
     responseUrl: string,
     prompt: string,
     teamId: string,
+    thread_ts?: string,
 ): Promise<any> {
     // Step 1: Get the external upload URL from Slack.
-    const requestId = `[req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}]`;
+    const requestId = `[req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}]`;
     const body = {
         filename: `${promptify(prompt)}.jpg`,
         length: imageBuffer.length,
@@ -398,6 +413,7 @@ async function postImageToSlack(
                     },
                 ],
                 channels: channelId, // Use the channelId to specify where the file should be posted.
+                thread_ts: thread_ts, // Add thread_ts if provided to post in a thread
                 // Additional parameters (e.g., initial_comment) can be added here.
             }),
         },
@@ -492,7 +508,7 @@ export const generate: ICommand = {
                 j.channel_id,
                 teamId, // Pass the team ID
             ).catch((err) => {
-                const errorId = `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                const errorId = `err-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
                 log.error(`[${errorId}] Error generating image:`, err);
                 postMessageToSlack(j.response_url, {
                     text: "An error occurred while generating the image. Please try again later.",
@@ -505,7 +521,7 @@ export const generate: ICommand = {
                 );
             });
         } catch (err) {
-            const errorId = `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const errorId = `err-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
             log.error(`[${errorId}] Error processing generate command:`, err);
 
             // Return an error message

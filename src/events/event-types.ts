@@ -21,3 +21,18 @@ export interface AppMentionEvent extends SlackEventEnvelope {
         event_ts: string;
     };
 }
+
+export interface ReactionAddedEvent extends SlackEventEnvelope {
+    event: {
+        type: "reaction_added";
+        user: string;
+        reaction: string;
+        item: {
+            type: string;
+            channel: string;
+            ts: string;
+        };
+        item_user: string;
+        event_ts: string;
+    };
+}

@@ -1,13 +1,14 @@
 import * as http from "http";
 
+import { log } from "./logging.js";
 import { ICommand, ICommandContext } from "./types.js";
 import { readAllBody } from "./util.js";
-import { log } from "./logging.js";
 
 import { config } from "./commands/config.js";
 import { generate } from "./commands/generate.js";
 import { help } from "./commands/help.js";
 import { app_mention } from "./events/app_mention.js";
+import { reaction_added } from "./events/reaction_added.js";
 import { url_verification } from "./events/url_verification.js";
 import { config_view_submission } from "./interactions/config_handlers.js";
 
@@ -21,6 +22,7 @@ const EVENTS: {
 } = {
     url_verification,
     app_mention,
+    reaction_added,
 };
 
 const INTERACTIONS: {
