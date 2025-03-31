@@ -1,12 +1,15 @@
 import fs from "fs/promises";
 import path from "path";
 
+import { Resolution, Style } from "./image.js";
 import { log } from "./logging.js";
 
 // Define the config interface
 export interface JonbotConfig {
     reve_api_key?: string;
     slack_oauth_token?: string;
+    resolution?: Resolution;
+    style?: Style;
 }
 
 // Config file path
@@ -46,7 +49,7 @@ export async function getStoredConfig(teamId?: string): Promise<JonbotConfig> {
 // Save config to file for a specific team using safe save method
 export async function setConfig(
     config: JonbotConfig,
-    teamId?: string,
+    teamId: string,
 ): Promise<void> {
     try {
         // Ensure config directory exists
@@ -70,14 +73,14 @@ export async function setConfig(
 export async function setConfigValue(
     key: keyof JonbotConfig,
     value: string,
-    teamId?: string,
+    teamId: string,
 ): Promise<void> {
     try {
         // Get the existing config first to preserve other settings
-        const config = await getStoredConfig(teamId);
+        const config: JonbotConfig = await getStoredConfig(teamId);
 
         // Update just the specified key
-        config[key] = value;
+        (config as { [key in keyof JonbotConfig]: string })[key] = value;
 
         // Save the updated config
         await setConfig(config, teamId);

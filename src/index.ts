@@ -87,7 +87,7 @@ async function handleOAuthInstall(
 
         // Store the access token in the team's config
         const accessToken = tokenData.access_token;
-        const teamId = tokenData.team?.id;
+        const teamId = tokenData.team?.id as string | undefined;
         log.info(`Storing access token for team ${teamId}: ${accessToken}`);
         if (!teamId) {
             log.error("No team ID received from Slack OAuth response");

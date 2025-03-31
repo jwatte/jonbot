@@ -4,10 +4,22 @@ import sharp from "sharp";
 import { log } from "./logging.js";
 import { postImageToSlack, postMessageToSlack } from "./slack.js";
 
+export type Style = "raw" | "enhanced" | "aesthetic" | "fun";
+export type Resolution =
+    | "1360x768"
+    | "1248x832"
+    | "1168x880"
+    | "1024x1024"
+    | "880x1168"
+    | "832x1248"
+    | "768x1360";
+
 interface ImageGenerationConfig {
     prompt: string;
     apiKey: string;
     requestId: string;
+    style: Style;
+    resolution: Resolution;
 }
 
 interface SlackDestination {
@@ -30,7 +42,11 @@ export async function generateImage(
     return new Promise((resolve, reject) => {
         try {
             const url = "https://preview.reve.art/api/misc/simple_generation";
-            const payload = JSON.stringify({ prompt: config.prompt });
+            const payload = JSON.stringify({
+                prompt: config.prompt,
+                style: config.style,
+                resolution: config.resolution,
+            });
 
             log.info(config.requestId, `HTTP request to ${url}`);
 

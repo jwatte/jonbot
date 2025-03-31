@@ -56,13 +56,6 @@ async function handleReactionAdded(j: ReactionAddedEvent): Promise<void> {
             j.team_id,
         );
 
-        // Log the message details for debugging
-        log.info(`Message details:`, {
-            text: message.text?.substring(0, 100),
-            message_ts: message.message_ts,
-            thread_ts: message.thread_ts,
-        });
-
         // Don't process empty messages
         if (!message.text?.trim()) {
             log.info(`[${requestId}] Ignoring empty message`);
@@ -98,6 +91,8 @@ async function handleReactionAdded(j: ReactionAddedEvent): Promise<void> {
                 prompt: message.text,
                 apiKey: config.reve_api_key,
                 requestId: `reaction-${event.event_ts}`,
+                style: config.style ?? "aesthetic",
+                resolution: config.resolution ?? "1168x880",
             },
             {
                 responseUrl: "https://slack.com/api/chat.postMessage",

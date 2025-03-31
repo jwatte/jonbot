@@ -15,9 +15,11 @@ export const help: ICommand = {
         res.write(
             JSON.stringify({
                 response_type: "ephemeral",
-                text: ctx.COMMANDS.map(
-                    (c) => `/${c.name} - ${c.description}\n`,
-                ).join(""),
+                text:
+                    ctx.COMMANDS.map(
+                        (c) => `/${c.name} - ${c.description}\n`,
+                    ).join("") +
+                    "Use the `:robot_face:` emoji reaction to generate images from the text of any message.\n",
             }),
         );
     },

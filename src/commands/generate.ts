@@ -1,14 +1,17 @@
 import http from "http";
 import { getStoredConfig } from "../config.js";
-import { generateImage } from "../image.js";
+import { generateImage, Style } from "../image.js";
 import { log } from "../logging.js";
 import { joinChannel, postMessageToSlack } from "../slack.js";
 import type { ICommand, ICommandContext } from "../types.js";
 
-export const generate: ICommand = {
-    name: "generate",
-    description: "Generate an image from a text prompt using the REVE API",
-    doCommand: async function (
+export class GenerateCommand implements ICommand {
+    public constructor(
+        readonly name: string,
+        readonly description: string,
+        readonly style: Style,
+    ) {}
+    async doCommand(
         req: http.IncomingMessage,
         res: http.ServerResponse,
         j: any,
@@ -21,7 +24,11 @@ export const generate: ICommand = {
             // Extract the prompt from the command text
             // The format is "/jonbot generate <prompt>"
             const commandText = j.text || "";
-            const prompt = commandText.replace(/^generate\s+/, "").trim();
+            const prompt = (
+                commandText.startsWith(this.name)
+                    ? commandText.substring(this.name.length)
+                    : commandText
+            ).trim();
 
             if (!prompt) {
                 // No prompt provided
@@ -49,17 +56,19 @@ export const generate: ICommand = {
                 return;
             }
 
+            // Create a unique request ID at the beginning of the function
+            const requestId = `[req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}]`;
             // Acknowledge the command immediately
+            log.info(`[${requestId}] Generating image for prompt: "${prompt}"`);
             res.writeHead(200, { "Content-Type": "application/json" });
             res.write(
                 JSON.stringify({
                     response_type: "ephemeral",
-                    text: `Generating image for prompt: "${prompt}"... This may take a few moments.`,
+                    text: `Generating ${this.style} image for prompt: "${prompt}"... This may take a few moments.`,
                 }),
             );
+            res.end();
 
-            // Create a unique request ID at the beginning of the function
-            const requestId = `[req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}]`;
             // Try to join the channel first, but don't await it
             // This runs in parallel with the image generation
             joinChannel(requestId, j.channel_id, teamId).catch((err) => {
@@ -75,6 +84,8 @@ export const generate: ICommand = {
                     prompt,
                     apiKey: config.reve_api_key,
                     requestId,
+                    style: this.style ?? "aesthetic",
+                    resolution: config.resolution ?? "1168x880",
                 },
                 {
                     responseUrl: j.response_url,
@@ -110,5 +121,29 @@ export const generate: ICommand = {
                 );
             }
         }
-    },
-};
+    }
+}
+
+export const generate: ICommand = new GenerateCommand(
+    "generate",
+    "Generate an aesthetic image from a prompt",
+    "aesthetic",
+);
+
+export const fun: ICommand = new GenerateCommand(
+    "fun",
+    "Generate a fun image from a prompt",
+    "fun",
+);
+
+export const expand: ICommand = new GenerateCommand(
+    "enhance",
+    "Generate an enhanced image from a prompt",
+    "enhanced",
+);
+
+export const raw: ICommand = new GenerateCommand(
+    "raw",
+    "Generate an image from an exact prompt",
+    "raw",
+);

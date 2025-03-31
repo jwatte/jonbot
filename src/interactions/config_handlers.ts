@@ -1,8 +1,8 @@
 import http from "http";
 import https from "https";
 import { setConfigValue } from "../config.js";
-import type { ICommandContext } from "../types.js";
 import { log } from "../logging.js";
+import type { ICommandContext } from "../types.js";
 
 // Function to validate the REVE API token
 async function validateToken(
